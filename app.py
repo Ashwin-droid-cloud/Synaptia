@@ -1,7 +1,7 @@
 """
-PuzzleAI – Flask Application
-Main server with API routes for puzzle generation, hints, chat, and answer checking.
-Backed by a local Ollama model (llama3:8b) — no external API key required.
+Synaptia — Flask Application
+Main server with API routes for exercise generation, hints, chat, and answer checking.
+Powered by a 3-tier AI failover system (OpenRouter -> Gemini -> Ollama).
 """
 
 from flask import Flask, render_template, request, jsonify

@@ -236,7 +236,7 @@
             <section class="features-section">
                 <div class="section-header">
                     <span class="section-label">PLATFORM CAPABILITIES</span>
-                    <h2 class="section-title">A complete cognitive training<br>environment built on <span
+                    <h2 class="section-title">A complete cognitive companion<br>built on <span
                             class="neon">generative AI</span></h2>
                 </div>
                 <div class="features-grid">
@@ -296,10 +296,9 @@
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                             </svg>
                         </div>
-                        <h3>Multi-Modal AI Interaction</h3>
-                        <p>Four specialised AI interaction modes — Hint Assistant, Open Dialogue, Guided Tutor, and
-                            Creative Analyst — each powered by a distinct system prompt tailored to the learning
-                            objective.</p>
+                        <h3>Multi-Modal Companion</h3>
+                        <p>Four specialised interaction modes — Hint Assistant, Open Dialogue, Guided Tutor, and
+                            Creative Analyst — each designed to provide gentle, adaptive support.</p>
                         <div class="feature-tags">
                             <span>Hint Assistant</span><span>Tutor</span><span>Creative</span><span>+1</span>
                         </div>
@@ -341,11 +340,11 @@
                 <div class="quickstart-inner">
                     <div class="qs-text">
                         <span class="section-label">GETTING STARTED</span>
-                        <h2>Begin sharpening your reasoning in <span class="neon">under sixty seconds.</span></h2>
-                        <p>No registration required. Select your discipline, set your difficulty, and receive an
-                            AI-crafted challenge — instantly unique, every session.</p>
+                        <h2>Begin your session in <span class="neon">under sixty seconds.</span></h2>
+                        <p>No registration required. Select a cognitive area, set your pacing, and receive an
+                            AI-crafted exercise — instantly unique, every session.</p>
                         <button class="btn btn-hero" onclick="navigateTo('puzzle')">
-                            <span>Generate First Puzzle</span>
+                            <span>Begin First Exercise</span>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
                                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -364,7 +363,7 @@
                         <div class="qs-step">
                             <div class="qs-num">02</div>
                             <div class="qs-info">
-                                <strong>Receive an AI-Crafted Challenge</strong>
+                                <strong>Receive an AI-Crafted Exercise</strong>
                                 <span>Uniquely generated — never repeated</span>
                             </div>
                         </div>
@@ -378,8 +377,8 @@
                         <div class="qs-step">
                             <div class="qs-num">04</div>
                             <div class="qs-info">
-                                <strong>Consult the AI Assistant</strong>
-                                <span>Progressive hints across 4 interaction modes</span>
+                                <strong>Talk to Synaptia</strong>
+                                <span>Progressive hints and gentle guidance</span>
                             </div>
                         </div>
                     </div>
@@ -397,7 +396,7 @@
                     <div class="control-panel-card">
                         <div class="cp-header">
                             <div>
-                                <h2>Generate Puzzle</h2>
+                                <h2>Generate Exercise</h2>
                                 <p class="cp-sub">Configure your challenge parameters below</p>
                             </div>
                             <div id="timerDisplay" class="timer-chip">00:00</div>
@@ -738,10 +737,7 @@
                                 </svg>
                             </div>
                             <div class="msg-bubble">
-                                <p>Welcome. I am your AI Hint Assistant, powered by Llama 3 running locally via Ollama.
-                                    Generate a puzzle on the Puzzles page and I will provide calibrated guidance to
-                                    support your reasoning process. You may also switch to Open Dialogue, Guided Tutor,
-                                    or Creative Analyst mode using the panel on the left.</p>
+                                <p>Welcome. I am Synaptia's Cognitive Companion, powered by advanced AI models. Generate an exercise on the Exercises page and I will provide gentle guidance to support your reasoning process. You may also switch to Open Dialogue, Guided Tutor, or Creative Analyst mode using the panel on the left.</p>
                                 <span class="msg-time">Now</span>
                             </div>
                         </div>
@@ -761,8 +757,8 @@
                                 </svg>
                             </button>
                         </div>
-                        <p class="chat-disclaimer">AI responses are probabilistic. For definitive puzzle answers, use
-                            the Reveal Solution button on the Puzzles page.</p>
+                        <p class="chat-disclaimer">AI responses are probabilistic. For definitive exercise answers, use
+                            the Reveal Solution button on the Exercises page.</p>
                     </div>
                 </div>
             </div>
@@ -792,7 +788,7 @@
                                 </svg>
                             </div>
                             <div class="stat-mini-val" id="statSolved">0</div>
-                            <div class="stat-mini-label">Puzzles Solved</div>
+                            <div class="stat-mini-label">Exercises Completed</div>
                         </div>
                         <div class="stat-mini-card">
                             <div class="stat-mini-icon">
@@ -854,7 +850,7 @@
                                 </svg>
                             </div>
                             <div class="ach-name">First Resolution</div>
-                            <div class="ach-desc">Successfully solve your inaugural puzzle</div>
+                            <div class="ach-desc">Successfully complete your inaugural exercise</div>
                         </div>
                         <div class="achievement locked" id="ach-five">
                             <div class="ach-icon">
@@ -865,7 +861,7 @@
                                 </svg>
                             </div>
                             <div class="ach-name">Sustained Momentum</div>
-                            <div class="ach-desc">Solve five consecutive puzzles</div>
+                            <div class="ach-desc">Complete five consecutive exercises</div>
                         </div>
                         <div class="achievement locked" id="ach-no-hints">
                             <div class="ach-icon">
@@ -876,7 +872,7 @@
                                 </svg>
                             </div>
                             <div class="ach-name">Unassisted Resolution</div>
-                            <div class="ach-desc">Solve a puzzle without requesting any hints</div>
+                            <div class="ach-desc">Complete an exercise without requesting any hints</div>
                         </div>
                         <div class="achievement locked" id="ach-hard">
                             <div class="ach-icon">
@@ -887,7 +883,7 @@
                                 </svg>
                             </div>
                             <div class="ach-name">Expert-Level Mastery</div>
-                            <div class="ach-desc">Solve an Expert-tier puzzle</div>
+                            <div class="ach-desc">Complete an Expert-tier exercise</div>
                         </div>
                         <div class="achievement locked" id="ach-speed">
                             <div class="ach-icon">
@@ -897,7 +893,7 @@
                                 </svg>
                             </div>
                             <div class="ach-name">Accelerated Cognition</div>
-                            <div class="ach-desc">Solve a puzzle in under 30 seconds</div>
+                            <div class="ach-desc">Complete an exercise in under 30 seconds</div>
                         </div>
                         <div class="achievement locked" id="ach-all-types">
                             <div class="ach-icon">
@@ -910,7 +906,7 @@
                                 </svg>
                             </div>
                             <div class="ach-name">Cognitive Polymath</div>
-                            <div class="ach-desc">Solve puzzles across all five disciplines</div>
+                            <div class="ach-desc">Complete exercises across all five disciplines</div>
                         </div>
                     </div>
                 </div>
@@ -950,8 +946,8 @@
                     </svg>
                 </div>
             </div>
-            <p class="loader-text">Generating your challenge…</p>
-            <p class="loader-sub">Llama 3 is crafting a unique puzzle</p>
+            <p class="loader-text">Generating your exercise…</p>
+            <p class="loader-sub">Synaptia is crafting a unique challenge</p>
         </div>
     </div>
 
