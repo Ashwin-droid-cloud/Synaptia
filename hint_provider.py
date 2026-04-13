@@ -1,7 +1,7 @@
 """
-Hint Provider Module
+Hint Provider Module — Synaptia
 Multi-mode AI chatbot with 3-tier failover:
-  Tier 1 — xAI / Grok API  (cloud, primary)
+  Tier 1 — OpenRouter API  (cloud, primary)
   Tier 2 — Google Gemini API (cloud, secondary fallback)
   Tier 3 — Local Ollama instance (last resort)
 """
@@ -14,12 +14,12 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# ── Tier 1: xAI / Grok ───────────────────────────────────────────────────────
+# ── Tier 1: OpenRouter ────────────────────────────────────────────────────────
 
-XAI_API_KEY  = os.getenv("XAI_API_KEY", "")
-XAI_MODEL    = os.getenv("XAI_MODEL", "grok-3-mini")
-XAI_BASE_URL = "https://api.x.ai/v1"
-XAI_TIMEOUT  = 30
+OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL    = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_TIMEOUT  = 40
 
 # ── Tier 2: Google Gemini ─────────────────────────────────────────────────────
 
@@ -34,47 +34,47 @@ OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL", "llama3:8b")
 OLLAMA_TIMEOUT  = 120  # seconds
 
 
-# ── Tier-1 helper: xAI / Grok ────────────────────────────────────────────────
+# ── Tier-1 helper: OpenRouter ─────────────────────────────────────────────────
 
-def _xai_chat(messages: list, temperature: float = 0.75, max_tokens: int = 600) -> Optional[str]:
+def _openrouter_chat(messages: list, temperature: float = 0.75, max_tokens: int = 600) -> Optional[str]:
     """
-    Send a chat request to xAI (Grok) via the OpenAI-compatible endpoint.
+    Send a chat request to OpenRouter via the OpenAI-compatible endpoint.
     Returns the assistant's response string, or None on failure.
     """
-    if not XAI_API_KEY:
+    if not OPENROUTER_API_KEY:
         return None
-    url = f"{XAI_BASE_URL}/chat/completions"
+    url = f"{OPENROUTER_BASE_URL}/chat/completions"
     headers = {
-        "Authorization": f"Bearer {XAI_API_KEY}",
-        "Content-Type":  "application/json",
+        "Authorization":  f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type":   "application/json",
+        "HTTP-Referer":   "https://synaptia.app",
+        "X-Title":        "Synaptia",
     }
-
-    # Grok supports system/user/assistant roles natively via xAI's API
     payload = {
-        "model":       XAI_MODEL,
+        "model":       OPENROUTER_MODEL,
         "messages":    messages,
         "max_tokens":  max_tokens,
         "temperature": temperature,
     }
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=XAI_TIMEOUT)
-        if resp.status_code in (403, 429):
-            logger.warning("[HintProvider] xAI %s — falling back to Gemini.", resp.status_code)
+        resp = requests.post(url, headers=headers, json=payload, timeout=OPENROUTER_TIMEOUT)
+        if resp.status_code in (402, 403, 429):
+            logger.warning("[HintProvider] OpenRouter %s — falling back to Gemini.", resp.status_code)
             return None
         resp.raise_for_status()
         data = resp.json()
         text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if text:
-            logger.info("[HintProvider] xAI (Grok) responded successfully.")
+            logger.info("[HintProvider] OpenRouter responded successfully.")
         return text or None
     except requests.exceptions.Timeout:
-        logger.warning("[HintProvider] xAI request timed out — falling back to Gemini.")
+        logger.warning("[HintProvider] OpenRouter request timed out — falling back to Gemini.")
         return None
     except requests.exceptions.ConnectionError:
-        logger.warning("[HintProvider] Cannot reach xAI API — falling back to Gemini.")
+        logger.warning("[HintProvider] Cannot reach OpenRouter API — falling back to Gemini.")
         return None
     except Exception as exc:
-        logger.warning("[HintProvider] xAI error: %s — falling back to Gemini.", exc)
+        logger.warning("[HintProvider] OpenRouter error: %s — falling back to Gemini.", exc)
         return None
 
 
@@ -178,28 +178,26 @@ def _ollama_chat(messages: list, temperature: float = 0.75, max_tokens: int = 60
 # ── HintProvider ──────────────────────────────────────────────────────────────
 
 class HintProvider:
-    """Provides hints and multi-mode AI chatbot functionality for puzzles."""
+    """Provides hints and multi-mode AI chatbot functionality for cognitive exercises."""
 
     _FALLBACK_RESPONSES = [
         (
-            "I'm temporarily unable to reach any AI model. "
-            "Please check your xAI credits, Gemini quota, or ensure Ollama is running "
-            f"at {OLLAMA_BASE_URL} with model '{OLLAMA_MODEL}' loaded, then try again."
+            "I'm temporarily unable to reach the AI model. "
+            "Please check your OpenRouter API key or network connection, then try again."
         ),
         (
             "All AI models are currently unavailable. "
-            "Please verify your xAI API credits are loaded or Ollama is running with llama3:8b."
+            "Please verify your OpenRouter API key has credits or retry shortly."
         ),
         (
             "I couldn't get a response from any AI provider. "
-            "Please verify your xAI API key has credits, or retry when Ollama is running."
+            "Please verify your OpenRouter key and try again."
         ),
     ]
-    _fallback_index = 0  # class-level so each call gives a varied message
+    _fallback_index = 0
 
     def __init__(self, *args, **kwargs):
-        # Accept (and ignore) any legacy api_key argument for compatibility.
-        self.conversations: dict = {}  # session_id -> message list
+        self.conversations: dict = {}
         self._active_model_id: str = ""
         self._active_model_display: str = "Initializing..."
 
@@ -207,11 +205,11 @@ class HintProvider:
 
     @property
     def active_model(self) -> str:
-        return self._active_model_id or OLLAMA_MODEL
+        return self._active_model_id or OPENROUTER_MODEL
 
     @property
     def active_model_display(self) -> str:
-        return self._active_model_display or "Llama 3 8B (Local)"
+        return self._active_model_display or "Gemini 2.0 Flash"
 
     # ── Public: hints ────────────────────────────────────────────────────────
 
@@ -232,7 +230,7 @@ class HintProvider:
             {
                 "role": "system",
                 "content": (
-                    "You are a puzzle hint assistant. "
+                    "You are a compassionate cognitive support assistant. "
                     "Generate a single concise hint. Return ONLY the hint text, nothing else."
                 ),
             },
@@ -251,11 +249,11 @@ class HintProvider:
             },
         ]
         result = (
-            _xai_chat(messages, temperature=0.7, max_tokens=200)
+            _openrouter_chat(messages, temperature=0.7, max_tokens=200)
             or _gemini_chat(messages, max_tokens=200)
             or _ollama_chat(messages, temperature=0.7, max_tokens=200)
         )
-        return result or "Unable to generate a hint at this time. Please try again shortly."
+        return result or "Unable to generate a clue at this time. Please try again shortly."
 
     # ── Public: chat ─────────────────────────────────────────────────────────
 
@@ -274,7 +272,7 @@ class HintProvider:
             session_id:   Unique identifier for this conversation.
             user_message: The user's input text.
             puzzle:       Current puzzle dict (optional context).
-            hints_used:   Number of hints consumed (anti-cheat gate).
+            hints_used:   Number of hints consumed.
             chat_mode:    'hint_bot' | 'free_chat' | 'tutor' | 'creative'
 
         Returns:
@@ -285,12 +283,10 @@ class HintProvider:
 
         system_content = self._build_system_prompt(puzzle, hints_used, chat_mode)
 
-        # Append user turn to history
         self.conversations[session_id].append(
             {"role": "user", "content": user_message}
         )
 
-        # Build messages list (system + last 12 turns for context)
         messages = [{"role": "system", "content": system_content}]
         messages += [
             {"role": m["role"] if m["role"] in ("user", "assistant") else "user",
@@ -298,14 +294,16 @@ class HintProvider:
             for m in self.conversations[session_id][-12:]
         ]
 
-        # 3-tier failover: xAI → Gemini → Ollama
+        # 3-tier failover: OpenRouter → Gemini → Ollama
         response_text = (
-            _xai_chat(messages, temperature=0.75, max_tokens=600)
+            _openrouter_chat(messages, temperature=0.75, max_tokens=600)
             or _gemini_chat(messages, max_tokens=600)
             or _ollama_chat(messages, temperature=0.75, max_tokens=600)
         )
 
         if response_text:
+            self._active_model_id = OPENROUTER_MODEL
+            self._active_model_display = "Gemini 2.0 Flash"
             self.conversations[session_id].append(
                 {"role": "assistant", "content": response_text}
             )
@@ -341,45 +339,47 @@ class HintProvider:
 
         mode_prompts = {
             "hint_bot": (
-                "You are PuzzleAI's Hint Assistant — a precise, encouraging guide whose "
-                "sole objective is to help users reason their way to the correct answer "
-                "without handing it to them prematurely.\n"
+                "You are Synaptia's Cognitive Companion — a warm, patient, and encouraging guide "
+                "designed to support individuals facing neurological challenges. Your role is to "
+                "gently help users reason through cognitive exercises without revealing answers prematurely.\n"
                 "PRINCIPLES:\n"
                 "1. Provide directional guidance, not direct answers.\n"
-                "2. Ask Socratic questions that steer thinking.\n"
+                "2. Ask gentle Socratic questions that steer thinking without overwhelming.\n"
                 "3. Keep responses concise — two to four sentences.\n"
-                "4. Celebrate reasoning progress, not just correct answers.\n"
-                "5. Maintain a calm, professional, yet warm tone."
+                "4. Celebrate every reasoning step, not just correct answers.\n"
+                "5. Maintain a calm, compassionate, and affirming tone at all times."
             ),
             "free_chat": (
-                "You are PuzzleAI's Open Dialogue assistant — a knowledgeable, engaging "
-                "conversationalist capable of discussing any topic with depth and clarity.\n"
+                "You are Synaptia's Open Dialogue companion — a thoughtful, empathetic conversationalist "
+                "designed to walk alongside individuals facing neurological or memory challenges.\n"
                 "PRINCIPLES:\n"
-                "1. Respond thoughtfully and with intellectual substance.\n"
+                "1. Respond with warmth, clarity, and intellectual substance.\n"
                 "2. Keep answers focused — three to five sentences unless more is warranted.\n"
-                "3. Share interesting perspectives and well-reasoned opinions.\n"
-                "4. Maintain a professional yet approachable tone.\n"
-                "5. Freely discuss puzzles, cognitive science, technology, or anything else."
+                "3. Be encouraging and patient — never rushed or dismissive.\n"
+                "4. Maintain a professional yet deeply approachable tone.\n"
+                "5. Freely discuss memory, cognition, puzzles, or anything the user needs."
             ),
             "tutor": (
-                "You are Professor Puzzle — PuzzleAI's Guided Tutor. Your mission is to "
-                "build the user's reasoning capabilities through structured, patient instruction.\n"
+                "You are Professor Synaptia — a dedicated Cognitive Tutor. Your mission is to "
+                "build the user's reasoning capabilities through structured, patient instruction "
+                "tailored for individuals who may be navigating neurological challenges.\n"
                 "PRINCIPLES:\n"
                 "1. Break complex logic into numbered, digestible steps.\n"
                 "2. Ask questions that prompt independent discovery before giving answers.\n"
-                "3. Identify and gently correct logical misconceptions.\n"
-                "4. Reinforce correct reasoning with brief, specific praise.\n"
-                "5. Use analogies and concrete examples where abstract reasoning is involved."
+                "3. Identify and gently correct logical misconceptions without judgment.\n"
+                "4. Reinforce correct reasoning with specific, meaningful praise.\n"
+                "5. Use analogies and concrete examples to make abstract reasoning accessible."
             ),
             "creative": (
-                "You are the Creative Analyst — PuzzleAI's lateral thinking specialist. "
-                "You help users explore unconventional solution paths through imaginative reasoning.\n"
+                "You are the Creative Mind — Synaptia's lateral thinking specialist. "
+                "You help users explore unconventional solution paths through imaginative, "
+                "compassionate reasoning — especially valuable for reconnecting creative thinking.\n"
                 "PRINCIPLES:\n"
                 "1. Challenge obvious interpretations — look for unexpected angles.\n"
                 "2. Draw on metaphor, wordplay, and cross-domain analogies.\n"
-                "3. Encourage speculative thinking without sacrificing rigour.\n"
-                "4. Keep the intellectual energy curious and exploratory.\n"
-                "5. Validate unusual ideas — creative leaps are assets, not distractions."
+                "3. Encourage speculative thinking without sacrificing clarity.\n"
+                "4. Keep the intellectual energy curious, warm, and exploratory.\n"
+                "5. Validate all ideas — creative leaps are signs of resilience."
             ),
         }
 
@@ -388,7 +388,7 @@ class HintProvider:
         # Append puzzle context for hint_bot mode
         if puzzle and chat_mode == "hint_bot":
             system += (
-                f"\n\nACTIVE PUZZLE CONTEXT:\n"
+                f"\n\nACTIVE EXERCISE CONTEXT:\n"
                 f"Question: {puzzle.get('question', '')}\n"
                 f"Answer: {puzzle.get('answer', '')}\n"
                 f"Difficulty: {puzzle.get('difficulty', 'medium')}\n"
@@ -396,15 +396,15 @@ class HintProvider:
             )
             if hints_used < 2:
                 system += (
-                    "\n\nIMPORTANT CONSTRAINT: The user has used fewer than two hints. "
+                    "\n\nIMPORTANT CONSTRAINT: The user has used fewer than two clues. "
                     "Do NOT reveal the answer even if explicitly requested. "
-                    "Direct them to use the hint buttons first."
+                    "Gently direct them to use the clue buttons first."
                 )
             else:
                 system += (
-                    "\n\nThe user has consumed two or more hints. If they explicitly and "
-                    "persistently request the full answer, you may reveal it — but first "
-                    "encourage one final independent attempt."
+                    "\n\nThe user has used two or more clues. If they explicitly and "
+                    "persistently need the full answer, you may reveal it — but first "
+                    "offer one gentle final nudge toward independent discovery."
                 )
 
         return system

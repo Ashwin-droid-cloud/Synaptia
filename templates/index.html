@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="PuzzleAI — an AI-powered cognitive training platform. Sharpen analytical reasoning, lateral thinking, and mathematical intuition through adaptive logic puzzles generated locally by Llama 3.">
-    <title>PuzzleAI — Cognitive Training Through AI-Generated Puzzles</title>
+        content="Synaptia is a compassionate companion for the mind—designed to gently support, strengthen, and reconnect individuals facing neurological challenges through adaptive cognitive exercises.">
+    <title>Synaptia — Your Neurological Companion</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,13 +31,13 @@
                         <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
                     </svg>
                 </div>
-                <span class="brand-text">You're Dumb</span>
+                <span class="brand-text">Synaptia</span>
             </a>
             <div class="nav-links" id="navLinks">
                 <button class="nav-link active" onclick="navigateTo('home')" data-page="home">Home</button>
-                <button class="nav-link" onclick="navigateTo('puzzle')" data-page="puzzle">Puzzles</button>
-                <button class="nav-link" onclick="navigateTo('chat')" data-page="chat">Max(The Dumb AI)</button>
-                <button class="nav-link" onclick="navigateTo('stats')" data-page="stats">Performance</button>
+                <button class="nav-link" onclick="navigateTo('puzzle')" data-page="puzzle">Exercises</button>
+                <button class="nav-link" onclick="navigateTo('chat')" data-page="chat">Companion</button>
+                <button class="nav-link" onclick="navigateTo('stats')" data-page="stats">Progress</button>
             </div>
             <div class="navbar-right">
                 <div class="stats-pill" id="statsPill">
@@ -88,9 +88,9 @@
     <!-- Mobile Menu -->
     <div class="mobile-menu" id="mobileMenu">
         <button class="mobile-link" onclick="navigateTo('home'); closeMobileMenu()">Home</button>
-        <button class="mobile-link" onclick="navigateTo('puzzle'); closeMobileMenu()">Puzzles</button>
-        <button class="mobile-link" onclick="navigateTo('chat'); closeMobileMenu()">AI Assistant</button>
-        <button class="mobile-link" onclick="navigateTo('stats'); closeMobileMenu()">Performance</button>
+        <button class="mobile-link" onclick="navigateTo('puzzle'); closeMobileMenu()">Exercises</button>
+        <button class="mobile-link" onclick="navigateTo('chat'); closeMobileMenu()">Companion</button>
+        <button class="mobile-link" onclick="navigateTo('stats'); closeMobileMenu()">Progress</button>
     </div>
 
     <!-- ======== PAGE CONTAINER ======== -->
@@ -113,15 +113,14 @@
                         Powered by <span id="heroModelName">Llama 3 8B (Local)</span>
                     </div>
                     <h1 class="hero-title">
-                        TRAIN YOUR
-                        <span class="hero-title-accent">ANALYTICAL
+                        SUPPORT YOUR
+                        <span class="hero-title-accent">BEAUTIFUL
                             <span class="hero-title-script">mind</span></span>
                     </h1>
-                    <p class="hero-subtitle">A cognitive development platform that leverages generative AI to deliver
-                        infinitely varied logic puzzles — adapting in real time to your skill level.</p>
+                    <p class="hero-subtitle">More than just a platform, Synaptia is a companion for the mind—designed to walk alongside individuals facing neurological challenges by offering gentle, adaptive cognitive exercises.</p>
                     <div class="hero-actions">
                         <button class="btn btn-hero" onclick="navigateTo('puzzle')">
-                            <span>Begin Training</span>
+                            <span>Begin Exercises</span>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
                                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -129,38 +128,38 @@
                             </svg>
                         </button>
                         <button class="btn btn-ghost" onclick="navigateTo('chat')">
-                            Explore AI Assistant
+                            Talk to Companion
                         </button>
                     </div>
                     <div class="hero-metrics">
                         <div class="hero-metric">
                             <span class="metric-val">5</span>
-                            <span class="metric-lbl">Puzzle Categories</span>
+                            <span class="metric-lbl">Cognitive Areas</span>
                         </div>
                         <div class="metric-sep"></div>
                         <div class="hero-metric">
                             <span class="metric-val">3</span>
-                            <span class="metric-lbl">Difficulty Tiers</span>
+                            <span class="metric-lbl">Pacing Levels</span>
                         </div>
                         <div class="metric-sep"></div>
                         <div class="hero-metric">
                             <span class="metric-val">4</span>
-                            <span class="metric-lbl">AI Interaction Modes</span>
+                            <span class="metric-lbl">Support Modes</span>
                         </div>
                     </div>
                 </div>
                 <div class="hero-visual">
                     <div class="puzzle-float-card">
                         <div class="float-card-inner">
-                            <div class="float-tag">ACTIVE PUZZLE</div>
+                            <div class="float-tag">ACTIVE EXERCISE</div>
                             <div class="float-q">I possess mountains with no stone, oceans with no water, and cities
                                 with no buildings. What am I?</div>
                         </div>
                     </div>
                     <div class="chat-float-card">
                         <div class="float-card-inner">
-                            <div class="float-role">AI Assistant</div>
-                            <div class="float-msg">Consider what medium can represent physical geography in an abstract,
+                            <div class="float-role">Companion</div>
+                            <div class="float-msg">Take your time. Consider what medium can represent geographical features in an abstract,
                                 two-dimensional form...</div>
                         </div>
                     </div>
@@ -171,16 +170,11 @@
             <section class="why-section">
                 <div class="why-inner">
                     <div class="why-text">
-                        <span class="section-label">THE SCIENCE BEHIND IT</span>
-                        <h2 class="section-title">Why deliberate puzzle-solving<br>accelerates <span
-                                class="neon">cognitive growth</span></h2>
-                        <p class="why-body">Research in cognitive neuroscience consistently demonstrates that structured
-                            analytical challenges — particularly those requiring deductive reasoning and pattern
-                            recognition — stimulate the prefrontal cortex and strengthen neural pathways associated with
-                            abstract thinking.</p>
-                        <p class="why-body">Regular engagement with logic puzzles has been correlated with measurable
-                            improvements in working memory capacity, processing speed, and the ability to transfer
-                            reasoning skills to novel, real-world problem domains.</p>
+                        <span class="section-label">THE SCIENCE OF CONNECTION</span>
+                        <h2 class="section-title">How gentle cognitive support<br>helps you <span
+                                class="neon">rediscover clarity</span></h2>
+                        <p class="why-body">In moments when memories fade and thoughts feel distant, structured and compassionate exercises can help stimulate neural pathways. Synaptia is designed to gently strengthen and reconnect these pathways without overwhelming pressure.</p>
+                        <p class="why-body">Regular, patient engagement with adaptive exercises has been shown to support working memory consolidation, enhance processing comfort, and foster a renewed sense of confidence and self.</p>
                         <div class="why-cta">
                             <button class="btn btn-hero" onclick="navigateTo('puzzle')">Start a Session</button>
                         </div>
@@ -195,9 +189,8 @@
                                     <line x1="12" y1="16" x2="12.01" y2="16" />
                                 </svg>
                             </div>
-                            <h4>Deductive Reasoning</h4>
-                            <p>Systematic logic puzzles train the mind to construct valid inference chains — a
-                                transferable skill for technical problem-solving and strategic decision-making.</p>
+                            <h4>Gentle Reasoning</h4>
+                            <p>Systematic exercises help the mind construct comfortable inference chains — providing a sense of grounding and structure when thoughts feel scattered.</p>
                         </div>
                         <div class="pillar-card">
                             <div class="pillar-icon">

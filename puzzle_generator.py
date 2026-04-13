@@ -1,12 +1,11 @@
 """
-Puzzle Generator Module
+Puzzle Generator Module — Synaptia
 3-Tier AI Failover:
-  Tier 1 — xAI / Grok API  (cloud, primary)
+  Tier 1 — OpenRouter API  (cloud, primary — model: gemini-2.0-flash via OpenRouter)
   Tier 2 — Google Gemini API (cloud, secondary fallback)
   Tier 3 — Local Ollama instance (http://localhost:11434, last resort)
 
-Each tier returns None on any failure, triggering the next tier
-automatically — zero user intervention required.
+Each tier returns None on any failure, triggering the next tier automatically.
 """
 
 import re as _re
@@ -24,22 +23,21 @@ logger = logging.getLogger(__name__)
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-# Tier 1 — xAI / Grok
-XAI_API_KEY     = os.getenv("XAI_API_KEY", "")
-XAI_MODEL       = os.getenv("XAI_MODEL", "grok-3-mini")
-XAI_BASE_URL    = "https://api.x.ai/v1"
-XAI_TIMEOUT     = 30   # seconds
+# Tier 1 — OpenRouter
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL   = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_TIMEOUT  = 40
 
 # Tier 2 — Google Gemini
-GEMINI_API_KEY  = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # Tier 3 — Local Ollama
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL", "llama3:8b")
-OLLAMA_TIMEOUT  = 120  # seconds — local inference can be slow
+OLLAMA_TIMEOUT  = 120
 
 # ── Puzzle uniqueness helpers ─────────────────────────────────────────────────
-# Each list is sampled randomly to produce a unique angle / theme per request.
 _RIDDLE_ANGLES = [
     "nature and animals", "everyday household objects", "weather phenomena",
     "technology and computers", "the human body", "food and cooking",
@@ -89,50 +87,52 @@ _ANGLE_MAP = {
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  TIER 1 — xAI / Grok API
+#  TIER 1 — OpenRouter API
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _xai_generate(prompt: str) -> Optional[str]:
+def _openrouter_generate(prompt: str) -> Optional[str]:
     """
-    Call the xAI (Grok) API via OpenAI-compatible chat completions.
+    Call OpenRouter API (OpenAI-compatible endpoint).
     Returns the response text, or None on any failure.
     """
-    if not XAI_API_KEY:
-        logger.info("[PuzzleGen] No XAI_API_KEY set — xAI tier disabled.")
+    if not OPENROUTER_API_KEY:
+        logger.info("[PuzzleGen] No OPENROUTER_API_KEY set — OpenRouter tier disabled.")
         return None
-    url = f"{XAI_BASE_URL}/chat/completions"
+    url = f"{OPENROUTER_BASE_URL}/chat/completions"
     headers = {
-        "Authorization": f"Bearer {XAI_API_KEY}",
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://synaptia.app",
+        "X-Title": "Synaptia",
     }
     payload = {
-        "model": XAI_MODEL,
+        "model": OPENROUTER_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 1024,
         "temperature": 1.0,
     }
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=XAI_TIMEOUT)
-        if resp.status_code == 403:
-            logger.warning("[PuzzleGen] xAI 403 — no credits/quota: %s — falling back to Gemini.", resp.text[:200])
+        resp = requests.post(url, headers=headers, json=payload, timeout=OPENROUTER_TIMEOUT)
+        if resp.status_code in (402, 403):
+            logger.warning("[PuzzleGen] OpenRouter credits/quota issue: %s — falling back to Gemini.", resp.text[:200])
             return None
         if resp.status_code == 429:
-            logger.warning("[PuzzleGen] xAI rate-limit hit — falling back to Gemini.")
+            logger.warning("[PuzzleGen] OpenRouter rate-limit hit — falling back to Gemini.")
             return None
         resp.raise_for_status()
         data = resp.json()
         text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if text:
-            logger.info("[PuzzleGen] xAI (Grok) responded successfully.")
+            logger.info("[PuzzleGen] OpenRouter (%s) responded successfully.", OPENROUTER_MODEL)
         return text or None
     except requests.exceptions.Timeout:
-        logger.warning("[PuzzleGen] xAI request timed out — falling back to Gemini.")
+        logger.warning("[PuzzleGen] OpenRouter request timed out — falling back to Gemini.")
         return None
     except requests.exceptions.ConnectionError:
-        logger.warning("[PuzzleGen] Cannot reach xAI API — falling back to Gemini.")
+        logger.warning("[PuzzleGen] Cannot reach OpenRouter API — falling back to Gemini.")
         return None
     except Exception as exc:
-        logger.warning("[PuzzleGen] xAI error: %s — falling back to Gemini.", exc)
+        logger.warning("[PuzzleGen] OpenRouter error: %s — falling back to Gemini.", exc)
         return None
 
 
@@ -142,6 +142,7 @@ def _xai_generate(prompt: str) -> Optional[str]:
 
 _gemini_model = None
 _gemini_available = False
+
 
 def _init_gemini():
     """Lazy-initialise the Gemini client. Called once on first use."""
@@ -168,7 +169,7 @@ def _init_gemini():
 def _gemini_generate(prompt: str) -> Optional[str]:
     """
     Call Google Gemini to generate content.
-    Returns the text response, or None on any failure (quota, network, etc.).
+    Returns the text response, or None on any failure.
     """
     if not _init_gemini():
         return None
@@ -188,7 +189,7 @@ def _gemini_generate(prompt: str) -> Optional[str]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  TIER 2 — Local Ollama (http://localhost:11434)
+#  TIER 3 — Local Ollama
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _ollama_chat(messages: list, temperature: float = 1.0) -> Optional[str]:
@@ -217,9 +218,7 @@ def _ollama_chat(messages: list, temperature: float = 1.0) -> Optional[str]:
         data = resp.json()
         return data.get("message", {}).get("content", "").strip() or None
     except requests.exceptions.ConnectionError:
-        logger.error(
-            "[PuzzleGen] Cannot reach Ollama at %s — is it running?", OLLAMA_BASE_URL
-        )
+        logger.error("[PuzzleGen] Cannot reach Ollama at %s — is it running?", OLLAMA_BASE_URL)
         return None
     except requests.exceptions.Timeout:
         logger.error("[PuzzleGen] Ollama request timed out after %ds.", OLLAMA_TIMEOUT)
@@ -235,17 +234,15 @@ def _ollama_chat(messages: list, temperature: float = 1.0) -> Optional[str]:
 
 class PuzzleGenerator:
     """
-    Generates logic puzzles using a 2-tier AI failover:
-      Tier 1: Google Gemini API (cloud)
-      Tier 2: Local Ollama (http://localhost:11434)
+    Generates cognitive exercises using a 3-tier AI failover:
+      Tier 1: OpenRouter API (cloud, primary)
+      Tier 2: Google Gemini API (cloud, secondary)
+      Tier 3: Local Ollama (http://localhost:11434)
     """
 
     def __init__(self, *args, **kwargs):
-        # Accept (and ignore) any legacy api_key argument for compatibility.
         self.puzzles: dict = {}
-        # Track recent prompt angles to avoid repetition within a session
         self._recent_tags: list = []
-        # Track which model was last used
         self._last_model_used: str = "Initializing..."
         self._last_model_id: str = ""
 
@@ -257,7 +254,7 @@ class PuzzleGenerator:
 
     @property
     def active_model_display(self) -> str:
-        return self._last_model_used or "Llama 3 8B (Local)"
+        return self._last_model_used or "Gemini 2.0 Flash"
 
     # ── Puzzle generation ─────────────────────────────────────────────────────
 
@@ -266,17 +263,17 @@ class PuzzleGenerator:
             prompt_text = self._build_prompt_text(difficulty, puzzle_type)
             messages = self._build_messages(difficulty, puzzle_type)
 
-            # ── TIER 1: Try xAI / Grok first ─────────────────────────────────
-            puzzle_content = _xai_generate(prompt_text)
+            # ── TIER 1: Try OpenRouter first ──────────────────────────────────
+            puzzle_content = _openrouter_generate(prompt_text)
             if puzzle_content:
-                model_display = f"Grok ({XAI_MODEL}) (Cloud)"
-                model_id = XAI_MODEL
+                model_display = f"Gemini 2.0 Flash (OpenRouter)"
+                model_id = OPENROUTER_MODEL
             else:
-                # ── TIER 2: Try Gemini ────────────────────────────────────────
-                logger.info("[PuzzleGen] Trying Gemini (Tier 2)...")
+                # ── TIER 2: Try Gemini directly ───────────────────────────────
+                logger.info("[PuzzleGen] Trying Gemini direct (Tier 2)...")
                 puzzle_content = _gemini_generate(prompt_text)
                 if puzzle_content:
-                    model_display = "Gemini 2.0 Flash (Cloud)"
+                    model_display = "Gemini 2.0 Flash"
                     model_id = "gemini-2.0-flash"
                 else:
                     # ── TIER 3: Fall back to local Ollama ─────────────────────
@@ -289,9 +286,8 @@ class PuzzleGenerator:
                 return {
                     "error": (
                         "All AI models are currently unavailable. "
-                        "xAI (Grok) has no credits, Gemini may be exhausted, "
-                        "and Ollama is not reachable. "
-                        f"Please ensure Ollama is running at {OLLAMA_BASE_URL} "
+                        "Please check your OpenRouter API key, Gemini quota, "
+                        f"or ensure Ollama is running at {OLLAMA_BASE_URL} "
                         f"with model '{OLLAMA_MODEL}' loaded."
                     )
                 }
@@ -314,16 +310,15 @@ class PuzzleGenerator:
     # ── Prompt / message building ─────────────────────────────────────────────
 
     def _build_prompt_text(self, difficulty, puzzle_type) -> str:
-        """Build a single prompt string (used for Gemini)."""
+        """Build a single prompt string (used for OpenRouter/Gemini)."""
         messages = self._build_messages(difficulty, puzzle_type)
-        # Combine system + user messages into a single prompt for Gemini
         parts = []
         for m in messages:
             parts.append(m["content"])
         return "\n\n".join(parts)
 
     def _build_messages(self, difficulty, puzzle_type) -> list:
-        """Build the Ollama chat messages list for puzzle generation."""
+        """Build the chat messages list for puzzle generation."""
         system_content = (
             "You are a world-class puzzle master with an encyclopaedic knowledge "
             "of riddles, logic, mathematics, wordplay, and trivia. "
@@ -520,17 +515,17 @@ Return ONLY valid JSON with this exact structure:
 
         # Graceful fallback — reached only if all three layers fail
         return {
-            "question": "The puzzle could not be decoded at this time. Please regenerate.",
+            "question": "The exercise could not be decoded at this time. Please regenerate.",
             "answer": "N/A",
             "explanation": "The AI response could not be parsed. This occasionally occurs with complex types. Try regenerating.",
             "difficulty": difficulty,
             "type": puzzle_type,
             "hints": [
-                "Please regenerate this puzzle using the button above.",
+                "Please regenerate this exercise using the button above.",
                 "Complex types such as Logic occasionally produce parse errors.",
                 "Switching to Riddle or Math yields the highest parse reliability.",
             ],
-            "solution_steps": ["Regenerate the puzzle to receive a valid challenge."],
+            "solution_steps": ["Regenerate the exercise to receive a valid challenge."],
             "solved": False,
         }
 
@@ -550,7 +545,7 @@ Return ONLY valid JSON with this exact structure:
         """Check if the user's answer is correct using normalised fuzzy matching."""
         puzzle = self.get_puzzle(puzzle_id)
         if not puzzle:
-            return {"error": "Puzzle not found"}
+            return {"error": "Exercise not found"}
 
         import re
         from difflib import SequenceMatcher

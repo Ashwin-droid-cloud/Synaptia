@@ -6,7 +6,8 @@
 /* ============================================
    CONFIG
    ============================================ */
-const API_BASE = 'http://127.0.0.1:5002';
+// Use relative paths so the same build works locally AND in any deployment
+const API_BASE = '';
 
 /* ============================================
    STATE
@@ -867,15 +868,15 @@ async function updateActiveModels() {
 (async () => {
   try {
     await api('/api/health');
-    console.log('[PuzzleAI] Backend connected');
+    console.log('[Synaptia] Backend connected');
     await updateActiveModels();
   } catch (e) {
-    console.warn('[PuzzleAI] Backend unreachable. Run: python3 app.py');
+    console.warn('[Synaptia] Backend unreachable. Run: python3 app.py');
   }
 })();
 
 // Poll every 15 seconds to ensure UI reflects any model rotation
 setInterval(updateActiveModels, 15000);
 
-console.log('[PuzzleAI] Cognitive Training Platform — loaded successfully');
+console.log('[Synaptia] Neurological Companion Platform — loaded successfully');
 
