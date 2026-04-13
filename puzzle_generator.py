@@ -30,7 +30,7 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_TIMEOUT  = 40
 
 # Tier 2 — Google Gemini
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyDCFDc7rMedBJ5nWpII7SEgOZEpHzVlLDU")
 
 # Tier 3 — Local Ollama
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
