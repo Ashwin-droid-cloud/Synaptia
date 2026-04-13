@@ -176,23 +176,8 @@ async function generatePuzzle() {
 
     if (puzzle.error) {
       const msg = puzzle.error;
-      const isQuota = /rate.limit|quota|rate-limit|all ai models/i.test(msg);
-      if (isQuota) {
-        // Show quota message and auto-retry after 65 seconds
-        let countdown = 65;
-        const update = () => {
-          toast(`AI quota reached — retrying in ${countdown}s…`, 'info');
-        };
-        update();
-        const tick = setInterval(() => { countdown--; }, 1000);
-        _generateRetryTimer = setTimeout(() => {
-          clearInterval(tick);
-          _generateRetryTimer = null;
-          generatePuzzle();
-        }, 65_000);
-      } else {
-        toast(msg, 'error');
-      }
+      toast('Generation failed — please try again.', 'error');
+      console.error('[Synaptia] Puzzle generation error:', msg);
       return;
     }
 
