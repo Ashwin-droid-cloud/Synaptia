@@ -1,9 +1,8 @@
 """
 Hint Provider Module — Synaptia
-Multi-mode AI chatbot with 3-tier failover:
-  Tier 1 — OpenRouter API  (cloud, primary)
-  Tier 2 — Google Gemini API (cloud, secondary fallback)
-  Tier 3 — Local Ollama instance (last resort)
+AI chatbot assistant powered entirely by the Groq API (groq.com).
+Uses the OpenAI-compatible endpoint at https://api.groq.com/openai/v1.
+Model: llama-3.3-70b-versatile
 """
 
 import requests
@@ -14,218 +13,104 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# ── Tier 1: OpenRouter ────────────────────────────────────────────────────────
+# ── Groq API Configuration ───────────────────────────────────────────────────
 
-OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL    = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_TIMEOUT  = 40
-
-# ── Tier 2: Google Gemini ─────────────────────────────────────────────────────
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-_gemini_chat_model = None
-_gemini_chat_available = False
-
-# ── Tier 3: Ollama Configuration ──────────────────────────────────────────────
-
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL", "llama3:8b")
-OLLAMA_TIMEOUT  = 120  # seconds
+GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "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")
+GROQ_MODEL    = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_TIMEOUT  = 60
 
 
-# ── Tier-1 helper: OpenRouter ─────────────────────────────────────────────────
+# ── Groq chat helper ─────────────────────────────────────────────────────────
 
-def _openrouter_chat(messages: list, temperature: float = 0.75, max_tokens: int = 600) -> Optional[str]:
+def _groq_chat(messages: list, temperature: float = 0.75, max_tokens: int = 600) -> Optional[str]:
     """
-    Send a chat request to OpenRouter via the OpenAI-compatible endpoint.
+    Send a chat request to the Groq API via the OpenAI-compatible endpoint.
     Returns the assistant's response string, or None on failure.
     """
-    if not OPENROUTER_API_KEY:
-        return None
-    url = f"{OPENROUTER_BASE_URL}/chat/completions"
+    url = f"{GROQ_BASE_URL}/chat/completions"
     headers = {
-        "Authorization":  f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type":   "application/json",
-        "HTTP-Referer":   "https://synaptia.app",
-        "X-Title":        "Synaptia",
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type":  "application/json",
     }
     payload = {
-        "model":       OPENROUTER_MODEL,
+        "model":       GROQ_MODEL,
         "messages":    messages,
         "max_tokens":  max_tokens,
         "temperature": temperature,
     }
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=OPENROUTER_TIMEOUT)
-        if resp.status_code in (402, 403, 429):
-            logger.warning("[HintProvider] OpenRouter %s — falling back to Gemini.", resp.status_code)
+        resp = requests.post(url, headers=headers, json=payload, timeout=GROQ_TIMEOUT)
+        if resp.status_code == 401:
+            logger.error("[HintProvider] Groq API: invalid API key (401). Raw: %s", resp.text[:200])
             return None
+        if resp.status_code == 429:
+            logger.warning("[HintProvider] Groq API: rate limit hit (429). Retrying in 5s…")
+            time.sleep(5)
+            resp = requests.post(url, headers=headers, json=payload, timeout=GROQ_TIMEOUT)
+            resp.raise_for_status()
         resp.raise_for_status()
         data = resp.json()
         text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if text:
-            logger.info("[HintProvider] OpenRouter responded successfully.")
+            logger.info("[HintProvider] Groq responded successfully.")
         return text or None
     except requests.exceptions.Timeout:
-        logger.warning("[HintProvider] OpenRouter request timed out — falling back to Gemini.")
+        logger.error("[HintProvider] Groq API request timed out.")
         return None
-    except requests.exceptions.ConnectionError:
-        logger.warning("[HintProvider] Cannot reach OpenRouter API — falling back to Gemini.")
-        return None
-    except Exception as exc:
-        logger.warning("[HintProvider] OpenRouter error: %s — falling back to Gemini.", exc)
-        return None
-
-
-# ── Tier-2 helper: Google Gemini ─────────────────────────────────────────────
-
-def _init_gemini_chat():
-    """Lazy-init Gemini for the chat assistant (shared module-level state)."""
-    global _gemini_chat_model, _gemini_chat_available
-    if _gemini_chat_model is not None:
-        return _gemini_chat_available
-    if not GEMINI_API_KEY:
-        _gemini_chat_available = False
-        return False
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        _gemini_chat_model = genai.GenerativeModel("gemini-2.0-flash")
-        _gemini_chat_available = True
-        logger.info("[HintProvider] Gemini chat model initialised.")
-        return True
-    except Exception as exc:
-        logger.warning("[HintProvider] Gemini init failed: %s", exc)
-        _gemini_chat_available = False
-        return False
-
-
-def _gemini_chat(messages: list, max_tokens: int = 600) -> Optional[str]:
-    """
-    Send a chat request to Google Gemini.
-    Returns the assistant's response string, or None on failure.
-    """
-    if not _init_gemini_chat():
-        return None
-    # Collapse all messages into a single prompt for Gemini
-    parts = []
-    for m in messages:
-        role_label = ""
-        if m["role"] == "system":
-            role_label = "[System] "
-        elif m["role"] == "assistant":
-            role_label = "[Assistant] "
-        parts.append(f"{role_label}{m['content']}")
-    prompt = "\n\n".join(parts)
-    try:
-        response = _gemini_chat_model.generate_content(prompt)
-        text = response.text.strip() if response.text else None
-        if text:
-            logger.info("[HintProvider] Gemini responded successfully.")
-        return text
-    except Exception as exc:
-        err = str(exc).lower()
-        if "quota" in err or "429" in err or "rate" in err:
-            logger.warning("[HintProvider] Gemini quota hit — falling back to Ollama.")
-        else:
-            logger.warning("[HintProvider] Gemini error: %s — falling back to Ollama.", exc)
-        return None
-
-
-# ── Tier-3 helper: Local Ollama ───────────────────────────────────────────────
-
-def _ollama_chat(messages: list, temperature: float = 0.75, max_tokens: int = 600) -> Optional[str]:
-    """
-    Send a chat request to the local Ollama instance.
-
-    Args:
-        messages:    List of {"role": ..., "content": ...} dicts.
-        temperature: Sampling temperature.
-        max_tokens:  Maximum tokens to generate (via num_predict).
-
-    Returns:
-        The assistant's response string, or None on failure.
-    """
-    url = f"{OLLAMA_BASE_URL}/api/chat"
-    payload = {
-        "model":    OLLAMA_MODEL,
-        "messages": messages,
-        "stream":   False,
-        "options": {
-            "temperature": temperature,
-            "num_predict": max_tokens,
-        },
-    }
-    try:
-        resp = requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT)
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("message", {}).get("content", "").strip() or None
-    except requests.exceptions.ConnectionError:
-        logger.error(
-            "[HintProvider] Cannot reach Ollama at %s — is it running?", OLLAMA_BASE_URL
-        )
-        return None
-    except requests.exceptions.Timeout:
-        logger.error("[HintProvider] Ollama request timed out after %ds.", OLLAMA_TIMEOUT)
+    except requests.exceptions.ConnectionError as exc:
+        logger.error("[HintProvider] Cannot reach Groq API: %s", exc)
         return None
     except Exception as exc:
-        logger.error("[HintProvider] Ollama error: %s", exc)
+        logger.error("[HintProvider] Groq API error: %s", exc)
         return None
 
 
-# ── HintProvider ──────────────────────────────────────────────────────────────
+# ── HintProvider ─────────────────────────────────────────────────────────────
 
 class HintProvider:
-    """Provides hints and multi-mode AI chatbot functionality for cognitive exercises."""
+    """Provides hints and multi-mode AI chatbot functionality powered by Groq."""
 
     _FALLBACK_RESPONSES = [
         (
-            "I'm temporarily unable to reach the AI model. "
-            "Please check your OpenRouter API key or network connection, then try again."
+            "I'm temporarily unable to reach the Groq API. "
+            "Please check your GROQ_API_KEY or network connection, then try again."
         ),
         (
-            "All AI models are currently unavailable. "
-            "Please verify your OpenRouter API key has credits or retry shortly."
+            "The Groq AI model is currently unavailable. "
+            "Please verify your API key has credits or retry shortly."
         ),
         (
-            "I couldn't get a response from any AI provider. "
-            "Please verify your OpenRouter key and try again."
+            "I couldn't get a response from Groq. "
+            "Please verify your GROQ_API_KEY and try again."
         ),
     ]
     _fallback_index = 0
 
     def __init__(self, *args, **kwargs):
         self.conversations: dict = {}
-        self._active_model_id: str = ""
-        self._active_model_display: str = "Initializing..."
+        self._active_model_id: str = GROQ_MODEL
+        self._active_model_display: str = f"Groq / {GROQ_MODEL}"
 
     # ── Public: active model ─────────────────────────────────────────────────
 
     @property
     def active_model(self) -> str:
-        return self._active_model_id or OPENROUTER_MODEL
+        return self._active_model_id or GROQ_MODEL
 
     @property
     def active_model_display(self) -> str:
-        return self._active_model_display or "Gemini 2.0 Flash"
+        return self._active_model_display or f"Groq / {GROQ_MODEL}"
 
     # ── Public: hints ────────────────────────────────────────────────────────
 
     def get_hint(self, puzzle: dict, hint_number: int = 0) -> str:
-        """
-        Return a hint for *puzzle*.
-
-        Prefers pre-generated hints embedded in the puzzle dict; falls back
-        to a dynamically generated hint if unavailable.
-        """
         if puzzle.get("hints") and hint_number < len(puzzle["hints"]):
             return puzzle["hints"][hint_number]
         return self._generate_hint(puzzle, hint_number)
 
     def _generate_hint(self, puzzle: dict, hint_number: int) -> str:
-        """Generate a dynamic hint via the best available AI tier."""
+        """Generate a dynamic hint via Groq."""
         messages = [
             {
                 "role": "system",
@@ -248,11 +133,7 @@ class HintProvider:
                 ),
             },
         ]
-        result = (
-            _openrouter_chat(messages, temperature=0.7, max_tokens=200)
-            or _gemini_chat(messages, max_tokens=200)
-            or _ollama_chat(messages, temperature=0.7, max_tokens=200)
-        )
+        result = _groq_chat(messages, temperature=0.7, max_tokens=200)
         return result or "Unable to generate a clue at this time. Please try again shortly."
 
     # ── Public: chat ─────────────────────────────────────────────────────────
@@ -265,19 +146,6 @@ class HintProvider:
         hints_used: int = 0,
         chat_mode: str = "hint_bot",
     ) -> str:
-        """
-        Send a message and receive an AI response.
-
-        Args:
-            session_id:   Unique identifier for this conversation.
-            user_message: The user's input text.
-            puzzle:       Current puzzle dict (optional context).
-            hints_used:   Number of hints consumed.
-            chat_mode:    'hint_bot' | 'free_chat' | 'tutor' | 'creative'
-
-        Returns:
-            AI response string (guaranteed non-empty).
-        """
         if session_id not in self.conversations:
             self.conversations[session_id] = []
 
@@ -294,27 +162,21 @@ class HintProvider:
             for m in self.conversations[session_id][-12:]
         ]
 
-        # 3-tier failover: OpenRouter → Gemini → Ollama
-        response_text = (
-            _openrouter_chat(messages, temperature=0.75, max_tokens=600)
-            or _gemini_chat(messages, max_tokens=600)
-            or _ollama_chat(messages, temperature=0.75, max_tokens=600)
-        )
+        response_text = _groq_chat(messages, temperature=0.75, max_tokens=600)
 
         if response_text:
-            self._active_model_id = OPENROUTER_MODEL
-            self._active_model_display = "Gemini 2.0 Flash"
+            self._active_model_id = GROQ_MODEL
+            self._active_model_display = f"Groq / {GROQ_MODEL}"
             self.conversations[session_id].append(
                 {"role": "assistant", "content": response_text}
             )
         else:
             response_text = self._next_fallback()
-            logger.warning("[HintProvider] All tiers unavailable; sending fallback to user.")
+            logger.warning("[HintProvider] Groq unavailable; sending fallback to user.")
 
         return response_text
 
     def clear_conversation(self, session_id: str) -> bool:
-        """Delete conversation history for *session_id*."""
         if session_id in self.conversations:
             del self.conversations[session_id]
             return True
@@ -323,7 +185,6 @@ class HintProvider:
     # ── Fallback message rotation ─────────────────────────────────────────────
 
     def _next_fallback(self) -> str:
-        """Return the next fallback message in sequence."""
         msg = HintProvider._FALLBACK_RESPONSES[HintProvider._fallback_index]
         HintProvider._fallback_index = (
             HintProvider._fallback_index + 1
@@ -332,11 +193,7 @@ class HintProvider:
 
     # ── System prompts ───────────────────────────────────────────────────────
 
-    def _build_system_prompt(
-        self, puzzle: dict, hints_used: int, chat_mode: str
-    ) -> str:
-        """Construct a role-specific system instruction for the given mode."""
-
+    def _build_system_prompt(self, puzzle: dict, hints_used: int, chat_mode: str) -> str:
         mode_prompts = {
             "hint_bot": (
                 "You are Synaptia's Cognitive Companion — a warm, patient, and encouraging guide "
@@ -385,7 +242,6 @@ class HintProvider:
 
         system = mode_prompts.get(chat_mode, mode_prompts["hint_bot"])
 
-        # Append puzzle context for hint_bot mode
         if puzzle and chat_mode == "hint_bot":
             system += (
                 f"\n\nACTIVE EXERCISE CONTEXT:\n"

@@ -1,11 +1,7 @@
 """
 Puzzle Generator Module — Synaptia
-3-Tier AI Failover:
-  Tier 1 — OpenRouter API  (cloud, primary — model: gemini-2.0-flash via OpenRouter)
-  Tier 2 — Google Gemini API (cloud, secondary fallback)
-  Tier 3 — Local Ollama instance (http://localhost:11434, last resort)
-
-Each tier returns None on any failure, triggering the next tier automatically.
+Powered entirely by the Groq API (groq.com) — llama-3.3-70b-versatile.
+Uses the OpenAI-compatible endpoint at https://api.groq.com/openai/v1.
 """
 
 import re as _re
@@ -21,23 +17,15 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+# ── Groq API Configuration ──────────────────────────────────────────────────
 
-# Tier 1 — OpenRouter
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL   = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_TIMEOUT  = 40
+GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "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")
+GROQ_MODEL    = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_TIMEOUT  = 60
 
-# Tier 2 — Google Gemini
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyDCFDc7rMedBJ5nWpII7SEgOZEpHzVlLDU")
+# ── Puzzle uniqueness helpers ────────────────────────────────────────────────
 
-# Tier 3 — Local Ollama
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL", "llama3:8b")
-OLLAMA_TIMEOUT  = 120
-
-# ── Puzzle uniqueness helpers ─────────────────────────────────────────────────
 _RIDDLE_ANGLES = [
     "nature and animals", "everyday household objects", "weather phenomena",
     "technology and computers", "the human body", "food and cooking",
@@ -86,145 +74,48 @@ _ANGLE_MAP = {
 }
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  TIER 1 — OpenRouter API
-# ═══════════════════════════════════════════════════════════════════════════════
+# ── Groq API call ────────────────────────────────────────────────────────────
 
-def _openrouter_generate(prompt: str) -> Optional[str]:
+def _groq_generate(messages: list, max_tokens: int = 1024, temperature: float = 1.0) -> Optional[str]:
     """
-    Call OpenRouter API (OpenAI-compatible endpoint).
-    Returns the response text, or None on any failure.
+    Call the Groq API via its OpenAI-compatible chat/completions endpoint.
+    Returns the text response, or None on any failure.
     """
-    if not OPENROUTER_API_KEY:
-        logger.info("[PuzzleGen] No OPENROUTER_API_KEY set — OpenRouter tier disabled.")
-        return None
-    url = f"{OPENROUTER_BASE_URL}/chat/completions"
+    url = f"{GROQ_BASE_URL}/chat/completions"
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://synaptia.app",
-        "X-Title": "Synaptia",
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type":  "application/json",
     }
     payload = {
-        "model": OPENROUTER_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 1024,
-        "temperature": 1.0,
+        "model":       GROQ_MODEL,
+        "messages":    messages,
+        "max_tokens":  max_tokens,
+        "temperature": temperature,
     }
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=OPENROUTER_TIMEOUT)
-        if resp.status_code in (402, 403):
-            logger.warning("[PuzzleGen] OpenRouter credits/quota issue: %s — falling back to Gemini.", resp.text[:200])
+        resp = requests.post(url, headers=headers, json=payload, timeout=GROQ_TIMEOUT)
+        if resp.status_code == 401:
+            logger.error("[PuzzleGen] Groq API: invalid API key (401). Raw: %s", resp.text[:200])
             return None
         if resp.status_code == 429:
-            logger.warning("[PuzzleGen] OpenRouter rate-limit hit — falling back to Gemini.")
-            return None
+            logger.warning("[PuzzleGen] Groq API: rate limit hit (429). Retrying in 5s…")
+            time.sleep(5)
+            resp = requests.post(url, headers=headers, json=payload, timeout=GROQ_TIMEOUT)
+            resp.raise_for_status()
         resp.raise_for_status()
         data = resp.json()
         text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if text:
-            logger.info("[PuzzleGen] OpenRouter (%s) responded successfully.", OPENROUTER_MODEL)
+            logger.info("[PuzzleGen] Groq (%s) responded successfully.", GROQ_MODEL)
         return text or None
     except requests.exceptions.Timeout:
-        logger.warning("[PuzzleGen] OpenRouter request timed out — falling back to Gemini.")
+        logger.error("[PuzzleGen] Groq API request timed out.")
         return None
-    except requests.exceptions.ConnectionError:
-        logger.warning("[PuzzleGen] Cannot reach OpenRouter API — falling back to Gemini.")
-        return None
-    except Exception as exc:
-        logger.warning("[PuzzleGen] OpenRouter error: %s — falling back to Gemini.", exc)
-        return None
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  TIER 2 — Google Gemini API
-# ═══════════════════════════════════════════════════════════════════════════════
-
-_gemini_model = None
-_gemini_available = False
-
-
-def _init_gemini():
-    """Lazy-initialise the Gemini client. Called once on first use."""
-    global _gemini_model, _gemini_available
-    if _gemini_model is not None:
-        return _gemini_available
-    if not GEMINI_API_KEY:
-        logger.info("[PuzzleGen] No GEMINI_API_KEY set — Gemini tier disabled.")
-        _gemini_available = False
-        return False
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        _gemini_model = genai.GenerativeModel("gemini-2.0-flash")
-        _gemini_available = True
-        logger.info("[PuzzleGen] Gemini API initialised successfully (gemini-2.0-flash).")
-        return True
-    except Exception as exc:
-        logger.warning("[PuzzleGen] Gemini init failed: %s — will use Ollama.", exc)
-        _gemini_available = False
-        return False
-
-
-def _gemini_generate(prompt: str) -> Optional[str]:
-    """
-    Call Google Gemini to generate content.
-    Returns the text response, or None on any failure.
-    """
-    if not _init_gemini():
-        return None
-    try:
-        response = _gemini_model.generate_content(prompt)
-        text = response.text.strip() if response.text else None
-        if text:
-            logger.info("[PuzzleGen] Gemini responded successfully.")
-        return text
-    except Exception as exc:
-        err_str = str(exc).lower()
-        if "quota" in err_str or "rate" in err_str or "429" in err_str or "resource" in err_str:
-            logger.warning("[PuzzleGen] Gemini quota/rate-limit hit: %s — falling back to Ollama.", exc)
-        else:
-            logger.warning("[PuzzleGen] Gemini error: %s — falling back to Ollama.", exc)
-        return None
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  TIER 3 — Local Ollama
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _ollama_chat(messages: list, temperature: float = 1.0) -> Optional[str]:
-    """
-    Send a chat request to the local Ollama instance.
-
-    Args:
-        messages:    List of {"role": ..., "content": ...} dicts.
-        temperature: Sampling temperature.
-
-    Returns:
-        The assistant's response string, or None on failure.
-    """
-    url = f"{OLLAMA_BASE_URL}/api/chat"
-    payload = {
-        "model":   OLLAMA_MODEL,
-        "messages": messages,
-        "stream":  False,
-        "options": {
-            "temperature": temperature,
-        },
-    }
-    try:
-        resp = requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT)
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("message", {}).get("content", "").strip() or None
-    except requests.exceptions.ConnectionError:
-        logger.error("[PuzzleGen] Cannot reach Ollama at %s — is it running?", OLLAMA_BASE_URL)
-        return None
-    except requests.exceptions.Timeout:
-        logger.error("[PuzzleGen] Ollama request timed out after %ds.", OLLAMA_TIMEOUT)
+    except requests.exceptions.ConnectionError as exc:
+        logger.error("[PuzzleGen] Cannot reach Groq API: %s", exc)
         return None
     except Exception as exc:
-        logger.error("[PuzzleGen] Ollama error: %s", exc)
+        logger.error("[PuzzleGen] Groq API error: %s", exc)
         return None
 
 
@@ -234,72 +125,49 @@ def _ollama_chat(messages: list, temperature: float = 1.0) -> Optional[str]:
 
 class PuzzleGenerator:
     """
-    Generates cognitive exercises using a 3-tier AI failover:
-      Tier 1: OpenRouter API (cloud, primary)
-      Tier 2: Google Gemini API (cloud, secondary)
-      Tier 3: Local Ollama (http://localhost:11434)
+    Generates cognitive exercises using the Groq API (groq.com).
+    Model: llama-3.3-70b-versatile (ultra-fast inference, free tier).
     """
 
     def __init__(self, *args, **kwargs):
         self.puzzles: dict = {}
         self._recent_tags: list = []
-        self._last_model_used: str = "Initializing..."
-        self._last_model_id: str = ""
+        self._last_model_used: str = f"Groq / {GROQ_MODEL}"
+        self._last_model_id: str = GROQ_MODEL
 
     # ── Active model (for health / status endpoints) ──────────────────────────
 
     @property
     def active_model(self) -> str:
-        return self._last_model_id or OLLAMA_MODEL
+        return self._last_model_id or GROQ_MODEL
 
     @property
     def active_model_display(self) -> str:
-        return self._last_model_used or "Gemini 2.0 Flash"
+        return self._last_model_used or f"Groq / {GROQ_MODEL}"
 
     # ── Puzzle generation ─────────────────────────────────────────────────────
 
     def generate_puzzle(self, difficulty="medium", puzzle_type="riddle"):
         try:
-            prompt_text = self._build_prompt_text(difficulty, puzzle_type)
             messages = self._build_messages(difficulty, puzzle_type)
-
-            # ── TIER 1: Try OpenRouter first ──────────────────────────────────
-            puzzle_content = _openrouter_generate(prompt_text)
-            if puzzle_content:
-                model_display = f"Gemini 2.0 Flash (OpenRouter)"
-                model_id = OPENROUTER_MODEL
-            else:
-                # ── TIER 2: Try Gemini directly ───────────────────────────────
-                logger.info("[PuzzleGen] Trying Gemini direct (Tier 2)...")
-                puzzle_content = _gemini_generate(prompt_text)
-                if puzzle_content:
-                    model_display = "Gemini 2.0 Flash"
-                    model_id = "gemini-2.0-flash"
-                else:
-                    # ── TIER 3: Fall back to local Ollama ─────────────────────
-                    logger.info("[PuzzleGen] Trying Ollama (Tier 3)...")
-                    puzzle_content = _ollama_chat(messages, temperature=1.0)
-                    model_display = "Llama 3 8B (Local)"
-                    model_id = OLLAMA_MODEL
+            puzzle_content = _groq_generate(messages, max_tokens=1024, temperature=1.0)
 
             if puzzle_content is None:
                 return {
                     "error": (
-                        "All AI models are currently unavailable. "
-                        "Please check your OpenRouter API key, Gemini quota, "
-                        f"or ensure Ollama is running at {OLLAMA_BASE_URL} "
-                        f"with model '{OLLAMA_MODEL}' loaded."
+                        "Groq API is currently unavailable. "
+                        "Please verify your GROQ_API_KEY and try again."
                     )
                 }
 
-            self._last_model_used = model_display
-            self._last_model_id = model_id
+            self._last_model_used = f"Groq / {GROQ_MODEL}"
+            self._last_model_id = GROQ_MODEL
 
             puzzle = self._parse_puzzle(puzzle_content, difficulty, puzzle_type)
             puzzle_id = str(uuid.uuid4())[:8]
             puzzle["id"]         = puzzle_id
             puzzle["created_at"] = datetime.now().isoformat()
-            puzzle["model_used"] = model_display
+            puzzle["model_used"] = self._last_model_used
             self.puzzles[puzzle_id] = puzzle
             return puzzle
 
@@ -308,14 +176,6 @@ class PuzzleGenerator:
             return {"error": str(e), "message": "Failed to generate puzzle"}
 
     # ── Prompt / message building ─────────────────────────────────────────────
-
-    def _build_prompt_text(self, difficulty, puzzle_type) -> str:
-        """Build a single prompt string (used for OpenRouter/Gemini)."""
-        messages = self._build_messages(difficulty, puzzle_type)
-        parts = []
-        for m in messages:
-            parts.append(m["content"])
-        return "\n\n".join(parts)
 
     def _build_messages(self, difficulty, puzzle_type) -> list:
         """Build the chat messages list for puzzle generation."""
@@ -341,7 +201,6 @@ class PuzzleGenerator:
         base_diff   = difficulty_desc.get(difficulty, "moderate difficulty")
         puzzle_desc = puzzle_type_desc.get(puzzle_type, "an engaging riddle")
 
-        # ── Uniqueness enforcer ───────────────────────────────────────────────
         angle_pool = _ANGLE_MAP.get(puzzle_type, _RIDDLE_ANGLES)
         fresh = [a for a in angle_pool if a not in self._recent_tags]
         if not fresh:
@@ -397,10 +256,6 @@ Return ONLY valid JSON with this exact structure:
     # ── Parsing Infrastructure ─────────────────────────────────────────────────
 
     def _extract_json_object(self, text):
-        """
-        Extract the first complete JSON object from raw text using brace-depth
-        counting. Handles chain-of-thought tokens that appear before the JSON.
-        """
         start = text.find('{')
         if start == -1:
             return text
@@ -435,10 +290,6 @@ Return ONLY valid JSON with this exact structure:
         return text
 
     def _sanitize_string_values(self, content):
-        """
-        Replace literal newline/carriage-return/tab characters that appear
-        inside JSON string values with their escaped equivalents.
-        """
         result = []
         in_string = False
         escape_next = False
@@ -465,37 +316,22 @@ Return ONLY valid JSON with this exact structure:
         return ''.join(result)
 
     def _parse_puzzle(self, content, difficulty, puzzle_type):
-        """
-        Robustly parse AI output into a structured puzzle dictionary.
-
-        Three-layer extraction strategy:
-          Layer 1  Extract the JSON object boundaries (brace-depth scan).
-          Layer 2  Sanitize literal whitespace inside string values.
-          Layer 3  Markdown-fence strip as a last-resort fallback.
-        """
         import re
         try:
             raw = content.strip()
-
-            # Layer 1 — extract JSON object; handles chain-of-thought preamble
             extracted = self._extract_json_object(raw)
-
-            # Layer 2 — sanitize literal newlines inside string values
             sanitized = self._sanitize_string_values(extracted)
 
             try:
                 puzzle_data = json.loads(sanitized)
             except json.JSONDecodeError:
-                # Layer 3 — try markdown-fence strip, then re-extract + re-sanitize
                 fence_match = re.search(r"```(?:json)?(.*?)```", raw, re.DOTALL | re.IGNORECASE)
                 if fence_match:
                     candidate = fence_match.group(1).strip()
                 else:
                     candidate = self._extract_json_object(self._sanitize_string_values(raw))
-
                 puzzle_data = json.loads(candidate)
 
-            # Normalise metadata
             puzzle_data["difficulty"] = difficulty
             puzzle_data["type"]       = puzzle_type
             puzzle_data["solved"]     = False
@@ -513,20 +349,15 @@ Return ONLY valid JSON with this exact structure:
         except Exception as e:
             logger.error("[PuzzleGen] Parse failure — %s | Raw excerpt: %s", e, content[:300])
 
-        # Graceful fallback — reached only if all three layers fail
         return {
-            "question": "The exercise could not be decoded at this time. Please regenerate.",
-            "answer": "N/A",
-            "explanation": "The AI response could not be parsed. This occasionally occurs with complex types. Try regenerating.",
-            "difficulty": difficulty,
-            "type": puzzle_type,
-            "hints": [
-                "Please regenerate this exercise using the button above.",
-                "Complex types such as Logic occasionally produce parse errors.",
-                "Switching to Riddle or Math yields the highest parse reliability.",
-            ],
+            "question":       "The exercise could not be decoded at this time. Please regenerate.",
+            "answer":         "N/A",
+            "explanation":    "The AI response could not be parsed. Please try regenerating.",
+            "difficulty":     difficulty,
+            "type":           puzzle_type,
+            "hints":          ["Please regenerate this exercise."],
             "solution_steps": ["Regenerate the exercise to receive a valid challenge."],
-            "solved": False,
+            "solved":         False,
         }
 
     # ── Retrieval & Validation ─────────────────────────────────────────────────
@@ -581,5 +412,5 @@ Return ONLY valid JSON with this exact structure:
 
         return {
             "correct": correct,
-            "answer": puzzle["answer"] if correct else None,
+            "answer":  puzzle["answer"] if correct else None,
         }

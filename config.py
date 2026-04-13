@@ -5,20 +5,13 @@ load_dotenv()
 
 class Config:
     """Base configuration"""
-    FLASK_ENV      = os.getenv("FLASK_ENV", "development")
-    DEBUG          = os.getenv("DEBUG", "True") == "True"
-    SECRET_KEY     = os.getenv("SECRET_KEY", "synaptia-secret-key-change-in-production")
+    FLASK_ENV  = os.getenv("FLASK_ENV", "development")
+    DEBUG      = os.getenv("DEBUG", "True") == "True"
+    SECRET_KEY = os.getenv("SECRET_KEY", "synaptia-secret-key-change-in-production")
 
-    # Tier 1 — OpenRouter (primary cloud)
-    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-    OPENROUTER_MODEL   = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
-
-    # Tier 2 — Google Gemini (secondary cloud fallback)
-    GEMINI_API_KEY  = os.getenv("GEMINI_API_KEY", "AIzaSyDCFDc7rMedBJ5nWpII7SEgOZEpHzVlLDU")
-
-    # Tier 3 — Ollama (local last-resort fallback)
-    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL", "llama3:8b")
+    # Groq API (groq.com) — sole AI provider
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
+    GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 
 class DevelopmentConfig(Config):
@@ -34,5 +27,5 @@ class ProductionConfig(Config):
 config = {
     "development": DevelopmentConfig,
     "production":  ProductionConfig,
-    "default":     DevelopmentConfig
+    "default":     DevelopmentConfig,
 }
