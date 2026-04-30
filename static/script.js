@@ -191,7 +191,21 @@ async function generatePuzzle() {
     updateNavStats();
     updatePuzzleContextBadge();
     updateDisciplineDescription(puzzle.type);
-    toast('Challenge generated — begin your analysis.', 'success');
+
+    // Show validation status toast
+    const v = puzzle.validation;
+    if (v) {
+      if (v.passed === true) {
+        const conf = v.confidence === 'high' ? 'high confidence' : v.confidence === 'medium' ? 'medium confidence' : 'low confidence';
+        toast(`AI cross-validated ✓ (${conf})`, 'success');
+      } else if (v.passed === false) {
+        toast('⚠ Validator flagged this puzzle — regenerate if the answer seems off.', 'error');
+      } else {
+        toast('Challenge generated — begin your analysis.', 'success');
+      }
+    } else {
+      toast('Challenge generated — begin your analysis.', 'success');
+    }
 
   } catch (err) {
     console.error(err);
@@ -222,6 +236,31 @@ function renderPuzzle(p) {
   const badge = $('#puzzleBadge');
   badge.textContent = diffMap[p.difficulty] || 'Intermediate';
   badge.className = `diff-badge badge-${p.difficulty || 'medium'}`;
+
+  // ── AI Validation Badge ──────────────────────────────────────
+  let validationBadge = $('#validationBadge');
+  if (!validationBadge) {
+    validationBadge = document.createElement('span');
+    validationBadge.id = 'validationBadge';
+    // Insert after puzzleBadge
+    badge.parentNode.insertBefore(validationBadge, badge.nextSibling);
+  }
+  const v = p.validation;
+  if (v && v.passed === true) {
+    const conf = v.confidence === 'high' ? '✓ AI Validated' : v.confidence === 'medium' ? '✓ AI Validated*' : '✓ Validated';
+    validationBadge.textContent = conf;
+    validationBadge.className = 'validation-badge validated';
+    validationBadge.title = `Validator: ${v.validator || 'Groq'}\n${v.note || ''}`;
+  } else if (v && v.passed === false) {
+    validationBadge.textContent = '⚠ Review';
+    validationBadge.className = 'validation-badge flagged';
+    validationBadge.title = `Validator flagged this puzzle:\n${v.note || ''}`;
+  } else {
+    validationBadge.textContent = '';
+    validationBadge.className = 'validation-badge';
+    validationBadge.title = '';
+  }
+  // ────────────────────────────────────────────────────────────
 
   $('#puzzleQuestion').textContent = p.question;
   $('#hintsArea').innerHTML = '';
@@ -364,6 +403,23 @@ async function showSolution() {
     if (sol.solution_steps && sol.solution_steps.length) {
       html += `<div><h3>Step-by-Step</h3><ol>${sol.solution_steps.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ol></div>`;
     }
+    // ── Validation verdict ───────────────────────────────────────
+    if (sol.validation) {
+      const vv = sol.validation;
+      const icon   = vv.passed === true ? '✓' : vv.passed === false ? '⚠' : '○';
+      const label  = vv.passed === true ? 'AI Cross-Validated' : vv.passed === false ? 'Validator Flagged' : 'Not Validated';
+      const cls    = vv.passed === true ? 'val-pass' : vv.passed === false ? 'val-fail' : 'val-skip';
+      html += `
+        <div class="validation-verdict ${cls}">
+          <span class="val-icon">${icon}</span>
+          <div>
+            <strong>${label}</strong> — ${escapeHtml(vv.confidence || 'low')} confidence<br>
+            <small>${escapeHtml(vv.note || '')} <em style="opacity:.6">(${escapeHtml(vv.validator || 'Groq')})</em></small>
+          </div>
+        </div>
+      `;
+    }
+    // ────────────────────────────────────────────────────────────
 
     $('#solutionBody').innerHTML = html;
     $('#solutionModal').classList.remove('hidden');
@@ -865,3 +921,560 @@ setInterval(updateActiveModels, 15000);
 
 console.log('[Synaptia] Neurological Companion Platform — loaded successfully');
 
+
+/* ============================================================
+   INTERACTIVE ENHANCEMENTS — layered on top of existing logic
+   ============================================================ */
+
+/* ── 1. Ripple effect on every button click ────────────────── */
+function addRipple(e) {
+  const btn = e.currentTarget;
+  btn.classList.add('btn-ripple');
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height) * 1.5;
+  const x = (e.clientX - rect.left) - size / 2;
+  const y = (e.clientY - rect.top)  - size / 2;
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple-circle';
+  ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
+  btn.appendChild(ripple);
+  ripple.addEventListener('animationend', () => ripple.remove());
+}
+
+function wireRipples() {
+  document.querySelectorAll('button:not(.kb-close)').forEach(btn => {
+    btn.removeEventListener('click', addRipple);
+    btn.addEventListener('click', addRipple);
+  });
+}
+wireRipples();
+
+// Re-wire after dynamic DOM changes (history, chat messages)
+const _origAddHistory = addHistory;
+window.addHistory = function(...args) {
+  _origAddHistory(...args);
+  wireRipples();
+};
+
+/* ── 2. Typewriter effect for puzzle question ──────────────── */
+function typewriterRender(element, text, speed = 16) {
+  element.innerHTML = '';
+  const cursor = document.createElement('span');
+  cursor.className = 'typewriter-cursor';
+  element.appendChild(cursor);
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i < text.length) {
+      element.insertBefore(document.createTextNode(text[i]), cursor);
+      i++;
+    } else {
+      clearInterval(interval);
+      setTimeout(() => cursor.remove(), 900);
+    }
+  }, speed);
+}
+
+// Hook into renderPuzzle
+const _origRenderPuzzle = renderPuzzle;
+window.renderPuzzle = function(p) {
+  _origRenderPuzzle(p);
+  const qEl = $('#puzzleQuestion');
+  if (qEl && p.question) {
+    typewriterRender(qEl, p.question, 14);
+  }
+};
+
+/* ── 3. Shake on wrong answer / Glow on correct ───────────── */
+const _origShowFeedback = showFeedback;
+window.showFeedback = function(correct) {
+  _origShowFeedback(correct);
+  const card = $('#puzzleCard');
+  const input = $('#answerInput');
+  if (!card) return;
+
+  if (correct) {
+    card.classList.remove('shake');
+    card.classList.add('correct-glow');
+    setTimeout(() => card.classList.remove('correct-glow'), 1000);
+  } else {
+    card.classList.remove('correct-glow');
+    // Force reflow to replay the animation
+    void card.offsetWidth;
+    card.classList.add('shake');
+    input?.classList.add('shake');
+    setTimeout(() => {
+      card.classList.remove('shake');
+      input?.classList.remove('shake');
+    }, 600);
+  }
+};
+
+/* ── 4. Hint progress bar ──────────────────────────────────── */
+function injectHintProgressBar() {
+  const hintBtn = $('#hintBtn');
+  if (!hintBtn) return;
+  let bar = document.getElementById('hintProgressBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'hintProgressBar';
+    bar.className = 'hint-progress-bar';
+    bar.innerHTML = '<div class="hint-progress-fill" id="hintProgressFill"></div>';
+    hintBtn.parentNode.insertBefore(bar, hintBtn.nextSibling);
+  }
+}
+
+function updateHintProgressBar() {
+  const fill = document.getElementById('hintProgressFill');
+  if (fill) {
+    fill.style.width = ((State.hintsUsed / 3) * 100) + '%';
+  }
+}
+
+const _origUpdateHintCount = updateHintCount;
+window.updateHintCount = function() {
+  _origUpdateHintCount();
+  updateHintProgressBar();
+};
+
+const _origRenderPuzzle2 = renderPuzzle;
+window.renderPuzzle = (function(prev) {
+  return function(p) {
+    prev(p);
+    injectHintProgressBar();
+    updateHintProgressBar();
+  };
+})(renderPuzzle);
+
+/* ── 5. Scroll-reveal via IntersectionObserver ─────────────── */
+function initScrollReveal() {
+  const revealEls = document.querySelectorAll(
+    '.pillar-card, .feature-card, .qs-step, .stat-mini-card, .achievement, .history-item, .activity-item'
+  );
+  revealEls.forEach(el => el.classList.add('reveal'));
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  revealEls.forEach(el => observer.observe(el));
+}
+initScrollReveal();
+
+// Re-run on page navigation
+const _origNavigateTo = navigateTo;
+window.navigateTo = function(page) {
+  _origNavigateTo(page);
+  setTimeout(initScrollReveal, 80);
+};
+
+/* ── 6. 3D tilt effect on feature cards ───────────────────── */
+function initTilt() {
+  document.querySelectorAll('.feature-card').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top  + rect.height / 2;
+      const dx = (e.clientX - cx) / (rect.width  / 2);
+      const dy = (e.clientY - cy) / (rect.height / 2);
+      card.style.transform = `translateY(-4px) rotateX(${-dy * 5}deg) rotateY(${dx * 5}deg)`;
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = '';
+    });
+  });
+}
+initTilt();
+
+/* ── 7. Keyboard shortcut overlay ──────────────────────────── */
+(function initKbOverlay() {
+  const overlay = document.createElement('div');
+  overlay.className = 'kb-overlay';
+  overlay.id = 'kbOverlay';
+  overlay.innerHTML = `
+    <div class="kb-card">
+      <button class="kb-close" onclick="document.getElementById('kbOverlay').classList.remove('open')">×</button>
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/>
+        </svg>
+        Keyboard Shortcuts
+      </h3>
+      <div class="kb-grid">
+        <div class="kb-row"><span>Submit answer</span><span class="kb-key"><kbd>Enter</kbd></span></div>
+        <div class="kb-row"><span>Send chat</span><span class="kb-key"><kbd>Enter</kbd></span></div>
+        <div class="kb-row"><span>Close modal / overlay</span><span class="kb-key"><kbd>Esc</kbd></span></div>
+        <div class="kb-row"><span>Go to Exercises</span><span class="kb-key"><kbd>Alt</kbd>+<kbd>E</kbd></span></div>
+        <div class="kb-row"><span>Go to Companion</span><span class="kb-key"><kbd>Alt</kbd>+<kbd>C</kbd></span></div>
+        <div class="kb-row"><span>Go to Progress</span><span class="kb-key"><kbd>Alt</kbd>+<kbd>P</kbd></span></div>
+        <div class="kb-row"><span>Go to Home</span><span class="kb-key"><kbd>Alt</kbd>+<kbd>H</kbd></span></div>
+        <div class="kb-row"><span>Toggle theme</span><span class="kb-key"><kbd>Alt</kbd>+<kbd>T</kbd></span></div>
+        <div class="kb-row"><span>This overlay</span><span class="kb-key"><kbd>?</kbd></span></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Close on overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+
+  // Badge
+  const badge = document.createElement('button');
+  badge.className = 'kb-hint-badge';
+  badge.innerHTML = `
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+    </svg>
+    Press <kbd style="background:var(--bg4);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:11px">?</kbd> for shortcuts
+  `;
+  badge.onclick = () => overlay.classList.add('open');
+  document.body.appendChild(badge);
+})();
+
+// Extended keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  const overlay = document.getElementById('kbOverlay');
+  if (e.key === '?' && !['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) {
+    overlay?.classList.toggle('open');
+  }
+  if (e.key === 'Escape') overlay?.classList.remove('open');
+  if (e.altKey && e.key === 'e') { e.preventDefault(); navigateTo('puzzle'); }
+  if (e.altKey && e.key === 'c') { e.preventDefault(); navigateTo('chat'); }
+  if (e.altKey && e.key === 'p') { e.preventDefault(); navigateTo('stats'); }
+  if (e.altKey && e.key === 'h') { e.preventDefault(); navigateTo('home'); }
+  if (e.altKey && e.key === 't') { e.preventDefault(); toggleTheme(); }
+});
+
+/* ── 8. Animated stat counters on stats page ───────────────── */
+function animateCounter(el, target, duration = 700) {
+  if (!el) return;
+  const start = parseFloat(el.textContent.replace(/[^0-9.]/g, '')) || 0;
+  const suffix = el.textContent.replace(/[0-9,.]/g, '');
+  const startTime = performance.now();
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
+    const value = start + (target - start) * eased;
+    el.textContent = (Number.isInteger(target) ? Math.round(value) : value.toFixed(1)) + suffix;
+    el.classList.add('stat-pop');
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+const _origRenderStatsPage = renderStatsPage;
+window.renderStatsPage = function() {
+  _origRenderStatsPage();
+  // Animate each stat card value
+  animateCounter($('#statTotalScore'), State.score);
+  animateCounter($('#statSolved'), State.solved);
+  animateCounter($('#statAttempts'), State.attempts);
+  animateCounter($('#statHints'), State.totalHints);
+  const winRate = State.attempts > 0 ? Math.round((State.solved / State.attempts) * 100) : 0;
+  const winRateEl = $('#statWinRate');
+  if (winRateEl) {
+    winRateEl.textContent = '0%';
+    animateCounter(winRateEl, winRate);
+  }
+  setTimeout(initScrollReveal, 100);
+};
+
+/* ── 9. Chat character counter ─────────────────────────────── */
+(function initCharCounter() {
+  const textarea = $('#chatInput');
+  if (!textarea) return;
+  const MAX = 600;
+
+  const counter = document.createElement('div');
+  counter.className = 'chat-char-counter';
+  counter.id = 'chatCharCounter';
+  counter.textContent = `0 / ${MAX}`;
+  textarea.parentNode.parentNode.appendChild(counter);
+
+  textarea.addEventListener('input', () => {
+    const len = textarea.value.length;
+    counter.textContent = `${len} / ${MAX}`;
+    counter.classList.toggle('warn',  len > MAX * 0.75 && len <= MAX);
+    counter.classList.toggle('limit', len > MAX);
+  });
+})();
+
+/* ── 10. Score flash in nav when score updates ─────────────── */
+const _origUpdateNavStats = updateNavStats;
+window.updateNavStats = function() {
+  const prevScore = parseInt($('#navScore')?.textContent || '0', 10);
+  _origUpdateNavStats();
+  const newScore = State.score;
+  if (newScore > prevScore) {
+    const scoreEl = $('#navScore');
+    if (scoreEl) {
+      scoreEl.classList.remove('score-flash');
+      void scoreEl.offsetWidth;
+      scoreEl.classList.add('score-flash');
+      scoreEl.addEventListener('animationend', () => scoreEl.classList.remove('score-flash'), { once: true });
+    }
+  }
+};
+
+/* ── 11. Generate button loading state enhancement ─────────── */
+(function enhanceGenerateBtn() {
+  const btn = $('#generateBtn');
+  if (!btn) return;
+
+  const origGenerate = window.generatePuzzle;
+  window.generatePuzzle = async function() {
+    btn.classList.add('loading');
+    const spinnerHTML = `<span class="btn-spin"></span>`;
+    const origHTML = btn.innerHTML;
+    btn.innerHTML = spinnerHTML + '<span class="btn-gen-label">Generating…</span>';
+    try {
+      await origGenerate();
+    } finally {
+      btn.innerHTML = origHTML;
+      btn.classList.remove('loading');
+      wireRipples();
+    }
+  };
+})();
+
+/* ── 12. Hero metric count-up on home page ─────────────────── */
+function initHeroCountUp() {
+  document.querySelectorAll('.metric-val').forEach(el => {
+    const target = parseInt(el.textContent, 10);
+    if (isNaN(target)) return;
+    el.textContent = '0';
+    setTimeout(() => animateCounter(el, target, 900), 400);
+  });
+}
+// Run once on load
+window.addEventListener('load', initHeroCountUp);
+
+/* ── 13. Smooth scroll-to-top on nav ───────────────────────── */
+// Already handled by navigateTo's window.scrollTo(0,0), but add smooth behaviour
+const _origNav = navigateTo;
+window.navigateTo = (function(prev) {
+  return function(page) {
+    prev(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+})(navigateTo);
+
+
+/* ============================================================
+   SCROLL ANIMATION ENGINE
+   ============================================================ */
+
+/* ── Scroll progress bar ── */
+(function initScrollProgress() {
+  const bar = document.createElement('div');
+  bar.id = 'scrollProgress';
+  document.body.prepend(bar);
+
+  window.addEventListener('scroll', () => {
+    const total = document.documentElement.scrollHeight - window.innerHeight;
+    const pct   = total > 0 ? (window.scrollY / total) * 100 : 0;
+    bar.style.width = pct + '%';
+  }, { passive: true });
+})();
+
+/* ── Universal scroll-reveal observer ── */
+(function initScrollRevealObserver() {
+  const CLASSES = [
+    '.scroll-fade',
+    '.scroll-slide-up',
+    '.scroll-slide-left',
+    '.scroll-slide-right',
+    '.scroll-scale',
+  ];
+
+  // Use a generous rootMargin so elements just below the fold also trigger,
+  // and a low threshold so partial visibility is enough.
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in-view');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.05, rootMargin: '0px 0px 0px 0px' });
+
+  function observeAll() {
+    CLASSES.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        if (!el.classList.contains('in-view')) observer.observe(el);
+      });
+    });
+
+    // Fallback: immediately reveal any element already within 300px of the viewport
+    // (handles cases where observer fires before layout is stable)
+    setTimeout(() => {
+      CLASSES.forEach(sel => {
+        document.querySelectorAll(sel).forEach(el => {
+          if (el.classList.contains('in-view')) return;
+          const rect = el.getBoundingClientRect();
+          if (rect.top < window.innerHeight + 300) {
+            el.classList.add('in-view');
+            observer.unobserve(el);
+          }
+        });
+      });
+    }, 200);
+  }
+
+  observeAll();
+
+  // Re-observe after dynamic content or page switches
+  const _nav = window.navigateTo;
+  window.navigateTo = function(page) {
+    _nav(page);
+    setTimeout(observeAll, 120);
+  };
+})();
+
+/* ── Add scroll-animate classes to existing home-page elements ── */
+(function tagHomeElements() {
+  // Why section text + pillars
+  const whyText = document.querySelector('.why-text');
+  const whyPillars = document.querySelector('.why-pillars');
+  if (whyText) whyText.classList.add('scroll-slide-left');
+  if (whyPillars) whyPillars.classList.add('scroll-slide-right');
+
+  // Pillar cards stagger
+  document.querySelectorAll('.pillar-card').forEach((el, i) => {
+    el.classList.add('scroll-slide-up');
+    el.setAttribute('data-delay', String(i + 1));
+  });
+
+  // Feature cards stagger
+  document.querySelectorAll('.feature-card').forEach((el, i) => {
+    el.classList.add('scroll-slide-up');
+    el.setAttribute('data-delay', String(i + 1));
+  });
+
+  // QS steps
+  document.querySelectorAll('.qs-step').forEach((el, i) => {
+    el.classList.add('scroll-slide-right');
+    el.setAttribute('data-delay', String(i));
+  });
+
+  // Section headers
+  document.querySelectorAll('.section-header').forEach(el => {
+    el.classList.add('scroll-fade');
+  });
+
+  // Why section sub-elements
+  const whySectionLabel = document.querySelector('.why-section .section-label');
+  if (whySectionLabel) whySectionLabel.classList.add('scroll-fade');
+
+  // Awareness banner as a whole (stats stay visible, just the banner fades)
+  const awBanner = document.querySelector('.awareness-banner');
+  if (awBanner) awBanner.classList.add('scroll-slide-up');
+})();
+
+/* ── Parallax effect on hero orbs ── */
+(function initParallax() {
+  const orbs = document.querySelectorAll('.hero-orb');
+  const heroFloatCards = document.querySelectorAll('.puzzle-float-card, .chat-float-card');
+
+  // Give them the parallax class
+  orbs.forEach(o => o.classList.add('parallax-orb'));
+
+  const speeds = [0.25, 0.12, 0.18];
+  const cardSpeeds = [-0.08, -0.14];
+
+  let ticking = false;
+
+  function onScroll() {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        const sy = window.scrollY;
+        orbs.forEach((orb, i) => {
+          orb.style.transform = `translateY(${sy * speeds[i] || 0}px)`;
+        });
+        heroFloatCards.forEach((card, i) => {
+          card.style.transform = `translateY(${-12 + sy * (cardSpeeds[i] || -0.1)}px)`;
+        });
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+})();
+
+/* ── Awareness counter: count up when banner scrolls into view ── */
+(function initAwarenessCounters() {
+  const banner = document.querySelector('.awareness-banner');
+  if (!banner) return;
+
+  let triggered = false;
+
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !triggered) {
+      triggered = true;
+      observer.disconnect();
+
+      document.querySelectorAll('.awareness-stat').forEach(stat => {
+        const countEl  = stat.querySelector('.aw-count');
+        const target   = parseInt(countEl?.textContent, 10);
+        if (!countEl || isNaN(target)) return;
+
+        countEl.textContent = '0';
+        const duration = 1200;
+        const startTime = performance.now();
+        function step(now) {
+          const t = Math.min((now - startTime) / duration, 1);
+          const eased = 1 - Math.pow(1 - t, 3);
+          countEl.textContent = Math.round(target * eased);
+          if (t < 1) requestAnimationFrame(step);
+        }
+        // Stagger each counter
+        const idx = Array.from(document.querySelectorAll('.awareness-stat')).indexOf(stat);
+        setTimeout(() => requestAnimationFrame(step), idx * 150);
+      });
+    }
+  }, { threshold: 0.3 });
+
+  observer.observe(banner);
+})();
+
+/* ── Navbar shrink on scroll ── */
+(function initNavbarShrink() {
+  const navbar = document.querySelector('.navbar');
+  if (!navbar) return;
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 60) {
+      navbar.style.height = '54px';
+      navbar.style.background = 'rgba(10,10,10,0.95)';
+    } else {
+      navbar.style.height = '';
+      navbar.style.background = '';
+    }
+  }, { passive: true });
+})();
+
+/* ── Horizontal mouse parallax on hero ── */
+(function initMouseParallax() {
+  const heroContent = document.querySelector('.hero-content');
+  const heroVisual  = document.querySelector('.hero-visual');
+  if (!heroContent || !heroVisual) return;
+
+  document.addEventListener('mousemove', (e) => {
+    // Only active when home page is visible
+    if (State.currentPage !== 'home') return;
+    const cx = window.innerWidth  / 2;
+    const cy = window.innerHeight / 2;
+    const dx = (e.clientX - cx) / cx;  // -1 to 1
+    const dy = (e.clientY - cy) / cy;
+
+    heroContent.style.transform = `translate(${dx * 6}px, ${dy * 4}px)`;
+    heroVisual.style.transform  = `translateY(-50%) translate(${dx * -10}px, ${dy * -6}px)`;
+  });
+})();

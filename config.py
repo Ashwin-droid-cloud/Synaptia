@@ -10,7 +10,7 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "synaptia-secret-key-change-in-production")
 
     # Groq API (groq.com) — sole AI provider
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
     GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 

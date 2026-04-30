@@ -19,10 +19,11 @@ logger = logging.getLogger(__name__)
 
 # ── Groq API Configuration ──────────────────────────────────────────────────
 
-GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "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")
-GROQ_MODEL    = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-GROQ_TIMEOUT  = 60
+GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "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")
+GROQ_MODEL          = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_VALIDATOR_MODEL = os.getenv("GROQ_VALIDATOR_MODEL", "llama-3.3-70b-versatile")
+GROQ_BASE_URL       = "https://api.groq.com/openai/v1"
+GROQ_TIMEOUT        = 60
 
 # ── Puzzle uniqueness helpers ────────────────────────────────────────────────
 
@@ -119,6 +120,69 @@ def _groq_generate(messages: list, max_tokens: int = 1024, temperature: float = 
         return None
 
 
+# ── AI Cross-Validator ───────────────────────────────────────────────────────
+
+def _groq_validate_puzzle(question: str, answer: str, explanation: str, puzzle_type: str) -> dict:
+    """
+    Uses a second independent Groq call to cross-validate the generated puzzle.
+    Returns a dict with keys:
+      - valid (bool): True if the puzzle passes validation
+      - reason (str): Explanation from the validator
+      - confidence (str): "high" | "medium" | "low"
+    """
+    prompt = f"""You are a rigorous fact-checker and logic validator. Your SOLE job is to verify \
+whether the puzzle below is internally consistent, factually correct, and has exactly one \
+clearly correct answer. Be brutally honest.
+
+Puzzle type: {puzzle_type}
+Question: {question}
+Proposed answer: {answer}
+Explanation: {explanation}
+
+Validation criteria:
+1. Is the proposed answer factually / logically correct given the question?
+2. Is the explanation consistent with the question and answer?
+3. Is there any ambiguity that could allow a different answer?
+4. For math/logic puzzles: verify the calculation or deduction is sound.
+5. For trivia: verify the stated fact is accurate.
+6. For riddles/wordplay: verify the answer satisfies the clue uniquely.
+
+Respond with ONLY valid JSON (no markdown, no code fences):
+{{
+  "valid": true or false,
+  "confidence": "high" or "medium" or "low",
+  "reason": "One concise sentence explaining the verdict."
+}}"""
+
+    messages = [
+        {"role": "system", "content": "You are a strict logic and fact-checking validator. Return only JSON."},
+        {"role": "user",   "content": prompt},
+    ]
+
+    raw = _groq_generate(messages, max_tokens=256, temperature=0.0)
+    if not raw:
+        logger.warning("[Validator] Groq validator did not respond — skipping validation.")
+        return {"valid": True, "confidence": "low", "reason": "Validator unavailable; skipped."}
+
+    try:
+        # Strip any accidental markdown fences
+        import re as _rev
+        clean = _rev.sub(r"```(?:json)?|```", "", raw).strip()
+        start = clean.find('{')
+        end   = clean.rfind('}')
+        if start != -1 and end != -1:
+            clean = clean[start:end + 1]
+        result = json.loads(clean)
+        logger.info(
+            "[Validator] Verdict: valid=%s, confidence=%s | %s",
+            result.get("valid"), result.get("confidence"), result.get("reason", "")
+        )
+        return result
+    except Exception as exc:
+        logger.warning("[Validator] Could not parse validator response: %s | Raw: %s", exc, raw[:200])
+        return {"valid": True, "confidence": "low", "reason": "Validator parse error; assumed valid."}
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  PuzzleGenerator
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -149,31 +213,72 @@ class PuzzleGenerator:
 
     def generate_puzzle(self, difficulty="medium", puzzle_type="riddle"):
         try:
-            messages = self._build_messages(difficulty, puzzle_type)
-            puzzle_content = _groq_generate(messages, max_tokens=1024, temperature=1.0)
-
-            if puzzle_content is None:
-                return {
-                    "error": (
-                        "Groq API is currently unavailable. "
-                        "Please verify your GROQ_API_KEY and try again."
-                    )
-                }
-
-            self._last_model_used = f"Groq / {GROQ_MODEL}"
-            self._last_model_id = GROQ_MODEL
-
-            puzzle = self._parse_puzzle(puzzle_content, difficulty, puzzle_type)
-            puzzle_id = str(uuid.uuid4())[:8]
-            puzzle["id"]         = puzzle_id
-            puzzle["created_at"] = datetime.now().isoformat()
-            puzzle["model_used"] = self._last_model_used
-            self.puzzles[puzzle_id] = puzzle
-            return puzzle
-
+            return self._generate_with_validation(difficulty, puzzle_type, attempt=1)
         except Exception as e:
             logger.error("[PuzzleGen] Unhandled exception: %s", e)
             return {"error": str(e), "message": "Failed to generate puzzle"}
+
+    def _generate_with_validation(self, difficulty, puzzle_type, attempt=1):
+        """Generate a puzzle then cross-validate it. Regenerates once if validation fails."""
+        MAX_ATTEMPTS = 2
+
+        messages = self._build_messages(difficulty, puzzle_type)
+        puzzle_content = _groq_generate(messages, max_tokens=1024, temperature=1.0)
+
+        if puzzle_content is None:
+            return {
+                "error": (
+                    "Groq API is currently unavailable. "
+                    "Please verify your GROQ_API_KEY and try again."
+                )
+            }
+
+        self._last_model_used = f"Groq / {GROQ_MODEL}"
+        self._last_model_id = GROQ_MODEL
+
+        puzzle = self._parse_puzzle(puzzle_content, difficulty, puzzle_type)
+
+        # ── AI Cross-Validation ──────────────────────────────────────────────
+        question    = puzzle.get("question", "")
+        answer      = puzzle.get("answer", "")
+        explanation = puzzle.get("explanation", "")
+
+        if question and answer and "N/A" not in answer:
+            validation = _groq_validate_puzzle(question, answer, explanation, puzzle_type)
+            puzzle["validation"] = {
+                "passed":     validation.get("valid", True),
+                "confidence": validation.get("confidence", "low"),
+                "note":       validation.get("reason", ""),
+                "validator":  f"Groq / {GROQ_VALIDATOR_MODEL}",
+            }
+
+            if not validation.get("valid", True) and attempt < MAX_ATTEMPTS:
+                logger.warning(
+                    "[PuzzleGen] Validation FAILED (attempt %d/%d) — reason: %s. Regenerating…",
+                    attempt, MAX_ATTEMPTS, validation.get("reason", "unknown")
+                )
+                return self._generate_with_validation(difficulty, puzzle_type, attempt + 1)
+
+            if not validation.get("valid", True):
+                logger.warning(
+                    "[PuzzleGen] Validation FAILED after %d attempts. Returning best-effort puzzle.",
+                    MAX_ATTEMPTS
+                )
+        else:
+            puzzle["validation"] = {
+                "passed":     None,
+                "confidence": "low",
+                "note":       "Puzzle could not be validated (parse error or N/A answer).",
+                "validator":  f"Groq / {GROQ_VALIDATOR_MODEL}",
+            }
+        # ─────────────────────────────────────────────────────────────────────
+
+        puzzle_id = str(uuid.uuid4())[:8]
+        puzzle["id"]         = puzzle_id
+        puzzle["created_at"] = datetime.now().isoformat()
+        puzzle["model_used"] = self._last_model_used
+        self.puzzles[puzzle_id] = puzzle
+        return puzzle
 
     # ── Prompt / message building ─────────────────────────────────────────────
 

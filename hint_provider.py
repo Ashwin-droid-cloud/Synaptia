@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # ── Groq API Configuration ───────────────────────────────────────────────────
 
-GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "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")
+GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "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")
 GROQ_MODEL    = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 GROQ_TIMEOUT  = 60

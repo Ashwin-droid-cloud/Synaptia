@@ -1,7 +1,7 @@
 """
 Synaptia — Flask Application
 Main server with API routes for exercise generation, hints, chat, and answer checking.
-Powered by a 3-tier AI failover system (OpenRouter -> Gemini -> Ollama).
+Powered by the Groq API (groq.com) with an AI cross-validation layer to prevent hallucinations.
 """
 
 from flask import Flask, render_template, request, jsonify
@@ -57,7 +57,7 @@ def index():
 
 @app.route("/api/puzzle/generate", methods=["POST"])
 def generate_puzzle():
-    """Generate a new puzzle via local Ollama model"""
+    
     try:
         data = request.get_json() or {}
         difficulty = data.get("difficulty", "medium")
@@ -135,6 +135,7 @@ def get_solution(puzzle_id):
         "explanation": puzzle.get("explanation", "No explanation available."),
         "solution_steps": puzzle.get("solution_steps", []),
         "hints": puzzle.get("hints", []),
+        "validation": puzzle.get("validation", {}),
     }), 200
 
 
