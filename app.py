@@ -4,7 +4,7 @@ Main server with API routes for exercise generation, hints, chat, and answer che
 Powered by the Groq API (groq.com) with an AI cross-validation layer to prevent hallucinations.
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect
 from flask_cors import CORS
 from config import config
 from puzzle_generator import PuzzleGenerator
@@ -51,6 +51,18 @@ def apply_cors(response):
 def index():
     """Serve the main web interface"""
     return render_template("index.html")
+
+
+@app.route("/login")
+def login():
+    """Serve the Firebase auth / login page"""
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    """Redirect to login (client-side Firebase handles actual sign-out)"""
+    return redirect("/login")
 
 
 # ============== PUZZLE API ==============

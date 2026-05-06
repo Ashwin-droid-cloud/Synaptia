@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign in to Synaptia — your compassionate neurological companion for cognitive training.">
+  <title>Sign In — Synaptia</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f4f4f8;
+      --bg2:       #ffffff;
+      --bg3:       #efeff4;
+      --bg4:       #e5e5ee;
+      --border:    rgba(0, 0, 0, 0.08);
+      --border2:   rgba(0, 0, 0, 0.14);
+      --text:      #111118;
+      --text2:     #555568;
+      --text3:     #9999b0;
+      --accent:    #6d4fff;
+      --accent2:   #8b6fff;
+      --accent-dim: rgba(109, 79, 255, 0.10);
+      --accent-glow: rgba(109, 79, 255, 0.22);
+      --success:   #16a34a;
+      --success-bg: rgba(22,163,74,.09);
+      --error:     #dc2626;
+      --error-bg:  rgba(220,38,38,.09);
+      --radius:    16px;
+      --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.06);
+      --shadow:    0 8px 40px rgba(80, 60, 180, 0.10);
+      --shadow-card: 0 24px 64px rgba(80, 60, 180, 0.12);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Animated background ── */
+    .auth-bg {
+      position: fixed; inset: 0; overflow: hidden; z-index: 0;
+      background: linear-gradient(135deg, #f0edff 0%, #f8f4ff 40%, #eef6ff 100%);
+    }
+
+    .auth-orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(70px); animation: orbDrift 18s ease-in-out infinite alternate;
+    }
+    .orb-a {
+      width: 560px; height: 560px;
+      background: radial-gradient(circle, rgba(109,79,255,0.18) 0%, transparent 70%);
+      top: -180px; left: -140px;
+    }
+    .orb-b {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle, rgba(99,179,255,0.14) 0%, transparent 70%);
+      bottom: -120px; right: -100px; animation-delay: -8s;
+    }
+    .orb-c {
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(180,130,255,0.12) 0%, transparent 70%);
+      top: 40%; left: 35%; animation-delay: -4s;
+    }
+
+    .auth-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(109,79,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(109,79,255,0.05) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 30%, transparent 100%);
+    }
+
+    @keyframes orbDrift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(28px, 18px) scale(1.07); }
+    }
+
+    /* ── Layout ── */
+    .auth-layout {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+
+    /* ── Brand corner ── */
+    .auth-brand {
+      position: fixed; top: 28px; left: 32px;
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none; color: var(--text);
+    }
+    .auth-brand-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(109,79,255,0.35);
+    }
+    .auth-brand-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 18px; letter-spacing: -0.3px;
+      color: var(--text);
+    }
+
+    /* ── Card ── */
+    .auth-card {
+      width: 100%; max-width: 448px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(109, 79, 255, 0.12);
+      border-radius: 24px;
+      padding: 44px 40px 40px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: var(--shadow-card);
+      animation: cardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(24px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .card-header { margin-bottom: 28px; }
+    .card-eyebrow {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(109,79,255,0.18);
+      border-radius: 99px;
+      padding: 5px 14px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      color: var(--accent); text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .eyebrow-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%  { opacity: 0.5; transform: scale(1.3); }
+    }
+    .card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 28px; font-weight: 800; letter-spacing: -0.6px;
+      margin-bottom: 6px; color: var(--text);
+    }
+    .card-subtitle { color: var(--text2); font-size: 14px; line-height: 1.55; }
+
+    /* ── Tab toggle ── */
+    .tab-row {
+      display: flex; gap: 3px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 4px;
+      margin-bottom: 28px;
+    }
+    .tab-btn {
+      flex: 1; padding: 9px 0; border: none; background: none; cursor: pointer;
+      border-radius: 9px; font-family: 'Inter', sans-serif; font-size: 13px;
+      font-weight: 500; color: var(--text3);
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--bg2); color: var(--text);
+      box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    /* ── Google button ── */
+    .btn-google {
+      width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 13px 20px; border-radius: 12px;
+      border: 1px solid var(--border2);
+      background: var(--bg2); color: var(--text); cursor: pointer;
+      font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-google:hover {
+      background: var(--bg3); border-color: rgba(109,79,255,0.25);
+      transform: translateY(-1px); box-shadow: 0 6px 20px rgba(109,79,255,0.10);
+    }
+    .btn-google:active { transform: translateY(0); }
+    .btn-google:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-google svg { flex-shrink: 0; }
+
+    /* ── Divider ── */
+    .divider {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .divider span { color: var(--text3); font-size: 12px; white-space: nowrap; }
+
+    /* ── Inputs ── */
+    .field-group { margin-bottom: 14px; }
+    .field-label {
+      display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text3); margin-bottom: 7px;
+    }
+    .field-input {
+      width: 100%; padding: 12px 14px; border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--bg2);
+      color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .field-input::placeholder { color: var(--text3); }
+
+    /* ── Confirm password (sign-up only) ── */
+    .confirm-row { display: none; }
+    .confirm-row.visible { display: block; }
+
+    /* ── Submit button ── */
+    .btn-submit {
+      width: 100%; padding: 14px; border-radius: 12px; border: none;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      color: #fff; font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px; font-weight: 600; cursor: pointer; letter-spacing: -0.2px;
+      margin-top: 6px;
+      box-shadow: 0 4px 20px rgba(109, 79, 255, 0.35);
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-submit:hover {
+      opacity: 0.92; transform: translateY(-1px);
+      box-shadow: 0 8px 28px rgba(109, 79, 255, 0.45);
+    }
+    .btn-submit:active { transform: translateY(0); }
+    .btn-submit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* ── Spinner ── */
+    .btn-spin {
+      width: 16px; height: 16px; border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error / success message ── */
+    .auth-msg {
+      margin-top: 14px; padding: 11px 14px; border-radius: 9px;
+      font-size: 13px; display: none; line-height: 1.45;
+    }
+    .auth-msg.error {
+      background: var(--error-bg); color: var(--error);
+      border: 1px solid rgba(220, 38, 38, 0.2);
+      display: block;
+    }
+    .auth-msg.success {
+      background: var(--success-bg); color: var(--success);
+      border: 1px solid rgba(22, 163, 74, 0.2);
+      display: block;
+    }
+
+    /* ── Footer link ── */
+    .auth-footer {
+      margin-top: 24px; text-align: center; font-size: 12px; color: var(--text3);
+    }
+    .auth-footer a { color: var(--accent); text-decoration: none; }
+    .auth-footer a:hover { text-decoration: underline; }
+
+    /* ── Loading / auth-check overlay ── */
+    .auth-check-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      transition: opacity 0.35s;
+    }
+    .auth-check-overlay.hidden {
+      opacity: 0; pointer-events: none;
+    }
+    .auth-check-ring {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border2);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .auth-check-text { color: var(--text2); font-size: 13px; }
+
+    /* ── Decorative trust badges ── */
+    .trust-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 20px; margin-top: 20px;
+    }
+    .trust-item {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--text3); font-weight: 500;
+    }
+    .trust-item svg { opacity: 0.5; }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      .auth-card { padding: 32px 24px; }
+      .auth-brand { top: 20px; left: 20px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Animated BG -->
+  <div class="auth-bg">
+    <div class="auth-orb orb-a"></div>
+    <div class="auth-orb orb-b"></div>
+    <div class="auth-orb orb-c"></div>
+    <div class="auth-grid"></div>
+  </div>
+
+  <!-- Auth check overlay — shown while Firebase verifies existing session -->
+  <div class="auth-check-overlay" id="authCheckOverlay">
+    <div class="auth-check-ring"></div>
+    <span class="auth-check-text">Verifying session…</span>
+  </div>
+
+  <!-- Brand -->
+  <a class="auth-brand" href="/">
+    <div class="auth-brand-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+        <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
+      </svg>
+    </div>
+    <span class="auth-brand-name">Synaptia</span>
+  </a>
+
+  <!-- Login card -->
+  <div class="auth-layout">
+    <div class="auth-card" id="authCard" style="display:none">
+
+      <div class="card-header">
+        <div class="card-eyebrow">
+          <span class="eyebrow-dot"></span>
+          Neurological Companion
+        </div>
+        <h1 class="card-title">Welcome back</h1>
+        <p class="card-subtitle">Sign in to continue your cognitive training journey.</p>
+      </div>
+
+      <!-- Tab row -->
+      <div class="tab-row" role="tablist">
+        <button class="tab-btn active" id="tabSignIn" onclick="switchTab('signin')" role="tab" aria-selected="true">Sign In</button>
+        <button class="tab-btn" id="tabSignUp" onclick="switchTab('signup')" role="tab" aria-selected="false">Create Account</button>
+      </div>
+
+      <!-- Google -->
+      <button class="btn-google" id="btnGoogle" onclick="handleGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18">
+          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+          <path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
+          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <!-- Divider -->
+      <div class="divider"><span>or continue with email</span></div>
+
+      <!-- Email -->
+      <div class="field-group">
+        <label class="field-label" for="inputEmail">Email address</label>
+        <input type="email" id="inputEmail" class="field-input" placeholder="you@example.com" autocomplete="email">
+      </div>
+
+      <!-- Password -->
+      <div class="field-group">
+        <label class="field-label" for="inputPassword">Password</label>
+        <input type="password" id="inputPassword" class="field-input" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <!-- Confirm password (sign-up only) -->
+      <div class="field-group confirm-row" id="confirmRow">
+        <label class="field-label" for="inputConfirm">Confirm password</label>
+        <input type="password" id="inputConfirm" class="field-input" placeholder="••••••••" autocomplete="new-password">
+      </div>
+
+      <!-- Submit -->
+      <button class="btn-submit" id="btnSubmit" onclick="handleEmailAuth()">
+        <span id="submitLabel">Sign In</span>
+      </button>
+
+      <!-- Message area -->
+      <div class="auth-msg" id="authMsg"></div>
+
+      <!-- Trust row -->
+      <div class="trust-row">
+        <span class="trust-item">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Encrypted
+        </span>
+        <span class="trust-item">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Secure Auth
+        </span>
+        <span class="trust-item">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          No card required
+        </span>
+      </div>
+
+      <!-- Footer -->
+      <div class="auth-footer">
+        By signing in you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      initializeApp
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      onAuthStateChanged,
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+    /* ── Firebase init ── */
+    const firebaseConfig = {
+      apiKey:            'AIzaSyBZYDhMURi5LhOsvqkM4WxrDP4DxzU8nFU',
+      authDomain:        'synaptia-4c06c.firebaseapp.com',
+      projectId:         'synaptia-4c06c',
+      storageBucket:     'synaptia-4c06c.firebasestorage.app',
+      messagingSenderId: '621450912800',
+      appId:             '1:621450912800:web:dbda19136df63d4f32c845',
+      measurementId:     'G-D3M3EGH0NE',
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
+
+    /* ── Auth state: if already signed in, skip login ── */
+    let authResolved = false;
+
+    // Safety net: if Firebase takes > 3s, show the card anyway
+    const authFallback = setTimeout(() => {
+      if (!authResolved) {
+        authResolved = true;
+        document.getElementById('authCheckOverlay').classList.add('hidden');
+        document.getElementById('authCard').style.display = '';
+      }
+    }, 3000);
+
+    onAuthStateChanged(auth, (user) => {
+      if (authResolved) return;
+      authResolved = true;
+      clearTimeout(authFallback);
+
+      if (user) {
+        // Already authenticated — send to main app
+        window.location.replace('/');
+      } else {
+        document.getElementById('authCheckOverlay').classList.add('hidden');
+        document.getElementById('authCard').style.display = '';
+      }
+    });
+
+    /* ── Tab state ── */
+    let currentTab = 'signin';
+
+    window.switchTab = function(tab) {
+      currentTab = tab;
+      document.getElementById('tabSignIn').classList.toggle('active', tab === 'signin');
+      document.getElementById('tabSignIn').setAttribute('aria-selected', String(tab === 'signin'));
+      document.getElementById('tabSignUp').classList.toggle('active', tab === 'signup');
+      document.getElementById('tabSignUp').setAttribute('aria-selected', String(tab === 'signup'));
+      document.getElementById('confirmRow').classList.toggle('visible', tab === 'signup');
+      document.getElementById('submitLabel').textContent = tab === 'signin' ? 'Sign In' : 'Create Account';
+      document.getElementById('inputPassword').autocomplete = tab === 'signin' ? 'current-password' : 'new-password';
+      clearMsg();
+    };
+
+    /* ── Message helpers ── */
+    function showMsg(text, type = 'error') {
+      const el = document.getElementById('authMsg');
+      el.textContent = text;
+      el.className = `auth-msg ${type}`;
+    }
+    function clearMsg() {
+      const el = document.getElementById('authMsg');
+      el.className = 'auth-msg';
+      el.textContent = '';
+    }
+
+    function setLoading(loading) {
+      const btn   = document.getElementById('btnSubmit');
+      const label = document.getElementById('submitLabel');
+      const gBtn  = document.getElementById('btnGoogle');
+      if (loading) {
+        btn.disabled = true;
+        gBtn.disabled = true;
+        label.innerHTML = '<span class="btn-spin"></span>';
+      } else {
+        btn.disabled = false;
+        gBtn.disabled = false;
+        label.textContent = currentTab === 'signin' ? 'Sign In' : 'Create Account';
+      }
+    }
+
+    /* ── Firebase error → human message ── */
+    function friendlyError(code) {
+      const map = {
+        'auth/invalid-email':           'Please enter a valid email address.',
+        'auth/user-not-found':          'No account found with that email.',
+        'auth/wrong-password':          'Incorrect password — please try again.',
+        'auth/invalid-credential':      'Incorrect email or password.',
+        'auth/email-already-in-use':    'An account with this email already exists. Try signing in.',
+        'auth/weak-password':           'Password must be at least 6 characters.',
+        'auth/too-many-requests':       'Too many attempts. Please wait a moment and try again.',
+        'auth/popup-closed-by-user':    'Sign-in window was closed. Please try again.',
+        'auth/network-request-failed':  'Network error — check your internet connection.',
+        'auth/cancelled-popup-request': '',
+      };
+      return map[code] || 'Something went wrong. Please try again.';
+    }
+
+    /* ── Google sign-in ── */
+    window.handleGoogle = async function() {
+      clearMsg();
+      setLoading(true);
+      try {
+        await signInWithPopup(auth, googleProvider);
+        // onAuthStateChanged above will redirect
+      } catch (err) {
+        const msg = friendlyError(err.code);
+        if (msg) showMsg(msg, 'error');
+        setLoading(false);
+      }
+    };
+
+    /* ── Email auth ── */
+    window.handleEmailAuth = async function() {
+      clearMsg();
+      const email   = document.getElementById('inputEmail').value.trim();
+      const password = document.getElementById('inputPassword').value;
+      const confirm  = document.getElementById('inputConfirm').value;
+
+      if (!email || !password) { showMsg('Please fill in all fields.', 'error'); return; }
+      if (currentTab === 'signup' && password !== confirm) {
+        showMsg('Passwords do not match.', 'error'); return;
+      }
+
+      setLoading(true);
+      try {
+        if (currentTab === 'signin') {
+          await signInWithEmailAndPassword(auth, email, password);
+        } else {
+          await createUserWithEmailAndPassword(auth, email, password);
+        }
+        // onAuthStateChanged will redirect
+      } catch (err) {
+        showMsg(friendlyError(err.code), 'error');
+        setLoading(false);
+      }
+    };
+
+    /* ── Enter key submits ── */
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !['BUTTON'].includes(document.activeElement?.tagName)) {
+        window.handleEmailAuth();
+      }
+    });
+  </script>
+
+</body>
+</html>

@@ -279,6 +279,30 @@ body {
   transform: scale(1.05);
 }
 
+.btn-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px 7px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-logout:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--red);
+  transform: scale(1.03);
+}
+
 .hamburger {
   display: none;
   flex-direction: column;
@@ -890,23 +914,105 @@ body {
 }
 
 /* ============================================
-   PUZZLE PAGE
+   PUZZLE PAGE — INTRO BANNER
+   ============================================ */
+.exercise-intro-banner {
+  background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 48px 24px 40px;
+}
+
+.eib-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.eib-text {
+  flex: 1;
+  min-width: 260px;
+}
+
+.eib-title {
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 10px 0 14px;
+}
+
+.eib-body {
+  font-size: 14px;
+  color: var(--text2);
+  line-height: 1.7;
+  max-width: 560px;
+}
+
+.eib-stats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 20px 28px;
+  flex-shrink: 0;
+}
+
+.eib-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0 24px;
+}
+
+.eib-stat-val {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--neon);
+  line-height: 1;
+}
+
+.eib-stat-lbl {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text2);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.eib-stat-div {
+  width: 1px;
+  height: 36px;
+  background: var(--border2);
+  flex-shrink: 0;
+}
+
+/* ============================================
+   PUZZLE PAGE — LAYOUT
    ============================================ */
 .puzzle-page-layout {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 40px 24px 80px;
+  padding: 36px 24px 80px;
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 360px;
   gap: 24px;
   align-items: start;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .puzzle-page-layout {
     grid-template-columns: 1fr;
   }
 }
+
 
 .puzzle-col-left {
   display: flex;
@@ -976,6 +1082,279 @@ body {
   display: flex;
   gap: 6px;
 }
+
+/* ── Difficulty Cards (enhanced) ── */
+.difficulty-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.diff-card {
+  background: var(--bg3);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.diff-card:hover {
+  border-color: var(--border2);
+  background: var(--bg4);
+}
+
+.diff-card.active {
+  background: rgba(212, 255, 0, 0.06);
+  border-color: var(--neon);
+}
+
+.diff-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.diff-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.diff-card.active .diff-card-name {
+  color: var(--neon);
+}
+
+.diff-xp {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--neon);
+  background: rgba(212, 255, 0, 0.1);
+  border-radius: 99px;
+  padding: 2px 8px;
+}
+
+.diff-card-desc {
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.4;
+  font-weight: 400;
+  margin: 0;
+}
+
+/* ── Discipline Grid (enhanced) ── */
+.discipline-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 600px) {
+  .discipline-grid { grid-template-columns: repeat(3, 1fr); }
+  .difficulty-cards { grid-template-columns: 1fr; }
+}
+
+.disc-card {
+  background: var(--bg3);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.disc-card:hover {
+  border-color: var(--border2);
+  background: var(--bg4);
+}
+
+.disc-card.active {
+  border-color: var(--neon);
+  background: rgba(212, 255, 0, 0.07);
+  color: var(--neon);
+}
+
+.disc-icon-wrap {
+  width: 32px;
+  height: 32px;
+  background: var(--bg4);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--text2);
+  transition: all 0.2s;
+}
+
+.disc-card.active .disc-icon-wrap {
+  background: rgba(212, 255, 0, 0.1);
+  color: var(--neon);
+}
+
+.disc-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.disc-info strong {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.disc-card.active .disc-info strong {
+  color: var(--neon);
+}
+
+.disc-info span {
+  font-size: 10px;
+  color: var(--text3);
+  text-align: center;
+}
+
+/* ── Puzzle objective row ── */
+.puzzle-objective-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(124, 101, 246, 0.06);
+  border: 1px solid rgba(124, 101, 246, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  margin-bottom: 16px;
+  color: var(--accent2);
+  font-size: 12px;
+}
+
+/* ── Puzzle header right (XP label + refresh btn) ── */
+.puzzle-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.puzzle-xp-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--neon);
+  background: rgba(212, 255, 0, 0.1);
+  border: 1px solid rgba(212, 255, 0, 0.2);
+  border-radius: 99px;
+  padding: 3px 12px;
+}
+
+/* ── Answer label row ── */
+.answer-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.answer-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.answer-hint-text {
+  font-size: 11px;
+  color: var(--text3);
+}
+
+/* ── Empty state steps ── */
+.empty-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.empty-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty-step-num {
+  width: 28px;
+  height: 28px;
+  background: var(--neon);
+  color: #000;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.empty-step span {
+  font-size: 11px;
+  color: var(--text3);
+  text-align: center;
+}
+
+.empty-step-arrow {
+  color: var(--text3);
+  font-size: 16px;
+  padding-bottom: 14px;
+}
+
+/* ── Hint penalty badge ── */
+.qh-penalty {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 99px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ── Discipline info header ── */
+.disc-info-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--text2);
+}
+
+.disc-info-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ── Scoring header ── */
+.scoring-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: var(--text2);
+}
+
+.scoring-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+
 
 .seg-btn {
   flex: 1;
@@ -2839,7 +3218,7 @@ body {
 }
 
 /* ============================================
-   DISCIPLINE INFO CARD
+   DISCIPLINE INFO CARD (legacy — kept for compat)
    ============================================ */
 .discipline-info-card {
   background: var(--bg2);
@@ -2859,6 +3238,154 @@ body {
   color: var(--text2);
   line-height: 1.65;
 }
+
+/* ============================================
+   NEUROSCIENCE PANEL
+   ============================================ */
+.neuro-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+
+.neuro-panel--active {
+  border-color: rgba(212, 255, 0, 0.2);
+  animation: neuroPanelIn 0.4s var(--ease);
+}
+
+@keyframes neuroPanelIn {
+  from { opacity: 0.6; transform: translateY(6px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+
+.neuro-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%);
+}
+
+.neuro-header-icon {
+  width: 36px;
+  height: 36px;
+  background: rgba(212, 255, 0, 0.1);
+  border: 1px solid rgba(212, 255, 0, 0.2);
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  color: var(--neon);
+  flex-shrink: 0;
+}
+
+.neuro-panel-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.neuro-panel-sub {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.neuro-section {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.neuro-section:last-child {
+  border-bottom: none;
+}
+
+.neuro-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+
+.neuro-body {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.7;
+}
+
+.neuro-bio {
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.75;
+}
+
+.neuro-region-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.neuro-region-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--rc) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rc) 30%, transparent);
+  color: var(--rc);
+}
+
+.neuro-region-tag::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--rc);
+  flex-shrink: 0;
+}
+
+.neuro-region-empty {
+  font-size: 12px;
+  color: var(--text3);
+  font-style: italic;
+}
+
+.neuro-callout {
+  margin: 0 22px 20px;
+  display: flex;
+  gap: 12px;
+  background: rgba(124, 101, 246, 0.06);
+  border: 1px solid rgba(124, 101, 246, 0.18);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  align-items: flex-start;
+}
+
+.neuro-callout-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.neuro-callout p {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.65;
+}
+
 
 /* ============================================
    CONTROL PANEL — professional labels

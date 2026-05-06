@@ -78,6 +78,14 @@
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                     </svg>
                 </button>
+                <button id="logoutBtn" class="btn-logout" title="Sign out" aria-label="Sign out" style="display:none" onclick="handleLogout()">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    <span>Logout</span>
+                </button>
                 <button class="hamburger" id="hamburger" aria-label="Menu">
                     <span></span><span></span><span></span>
                 </button>
@@ -469,88 +477,92 @@
 
         <!-- ════ PUZZLE ════ -->
         <div class="page page-puzzle" id="page-puzzle">
-            <div class="puzzle-page-layout">
 
+            <!-- ── Page intro banner ── -->
+            <div class="exercise-intro-banner">
+                <div class="eib-inner">
+                    <div class="eib-text">
+                        <span class="section-label">COGNITIVE REHABILITATION</span>
+                        <h2 class="eib-title">Every exercise targets a <span class="neon">specific neurological deficit</span></h2>
+                        <p class="eib-body">Cognitive decline in conditions like Alzheimer's and dementia is not uniform — it attacks distinct brain systems at different rates. Synaptia's exercise disciplines are mapped directly to those systems, training the precise neural circuits that deterioration disrupts first.</p>
+                    </div>
+                    <div class="eib-stats">
+                        <div class="eib-stat">
+                            <div class="eib-stat-val">5</div>
+                            <div class="eib-stat-lbl">Neural circuits<br>targeted</div>
+                        </div>
+                        <div class="eib-stat-div"></div>
+                        <div class="eib-stat">
+                            <div class="eib-stat-val">3×</div>
+                            <div class="eib-stat-lbl">Risk reduction<br>with engagement</div>
+                        </div>
+                        <div class="eib-stat-div"></div>
+                        <div class="eib-stat">
+                            <div class="eib-stat-val">AI</div>
+                            <div class="eib-stat-lbl">Cross-validated<br>every challenge</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="puzzle-page-layout">
                 <div class="puzzle-col-left">
                     <!-- Control Panel -->
                     <div class="control-panel-card">
                         <div class="cp-header">
                             <div>
-                                <h2>Generate Exercise</h2>
-                                <p class="cp-sub">Configure your challenge parameters below</p>
+                                <h2>Configure Exercise</h2>
+                                <p class="cp-sub">Choose your discipline and difficulty, then generate a unique AI challenge</p>
                             </div>
                             <div id="timerDisplay" class="timer-chip">00:00</div>
                         </div>
                         <div class="cp-controls">
                             <div class="control-group">
-                                <label class="ctrl-label">DIFFICULTY TIER</label>
-                                <div class="btn-group" id="difficultyGroup">
-                                    <button class="seg-btn" data-value="easy"
-                                        onclick="selectDifficulty('easy')">Introductory</button>
-                                    <button class="seg-btn active" data-value="medium"
-                                        onclick="selectDifficulty('medium')">Intermediate</button>
-                                    <button class="seg-btn" data-value="hard"
-                                        onclick="selectDifficulty('hard')">Expert</button>
+                                <label class="ctrl-label">Difficulty Tier</label>
+                                <div class="difficulty-cards" id="difficultyGroup">
+                                    <button class="diff-card seg-btn" data-value="easy" onclick="selectDifficulty('easy')">
+                                        <div class="diff-card-top"><span class="diff-card-name">Introductory</span><span class="diff-xp">+100 XP</span></div>
+                                        <p class="diff-card-desc">Accessible pacing — ideal for warm-up sessions.</p>
+                                    </button>
+                                    <button class="diff-card seg-btn active" data-value="medium" onclick="selectDifficulty('medium')">
+                                        <div class="diff-card-top"><span class="diff-card-name">Intermediate</span><span class="diff-xp">+150 XP</span></div>
+                                        <p class="diff-card-desc">Moderate challenge — requires sustained focus.</p>
+                                    </button>
+                                    <button class="diff-card seg-btn" data-value="hard" onclick="selectDifficulty('hard')">
+                                        <div class="diff-card-top"><span class="diff-card-name">Expert</span><span class="diff-xp">+200 XP</span></div>
+                                        <p class="diff-card-desc">High cognitive load — demands rigorous insight.</p>
+                                    </button>
                                 </div>
                             </div>
                             <div class="control-group">
-                                <label class="ctrl-label">COGNITIVE DISCIPLINE</label>
-                                <div class="type-grid" id="typeGrid">
-                                    <button class="type-btn active" data-value="riddle" onclick="selectType('riddle')">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="1.8">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                            <line x1="12" y1="17" x2="12.01" y2="17" />
-                                        </svg>
-                                        <span>Riddle</span>
+                                <label class="ctrl-label">Cognitive Discipline</label>
+                                <div class="discipline-grid" id="typeGrid">
+                                    <button class="disc-card type-btn active" data-value="riddle" onclick="selectType('riddle')">
+                                        <div class="disc-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                                        <div class="disc-info"><strong>Riddle</strong><span>Lateral thinking</span></div>
                                     </button>
-                                    <button class="type-btn" data-value="math" onclick="selectType('math')">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="1.8">
-                                            <line x1="19" y1="5" x2="5" y2="19" />
-                                            <circle cx="6.5" cy="6.5" r="2.5" />
-                                            <circle cx="17.5" cy="17.5" r="2.5" />
-                                        </svg>
-                                        <span>Mathematics</span>
+                                    <button class="disc-card type-btn" data-value="math" onclick="selectType('math')">
+                                        <div class="disc-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div>
+                                        <div class="disc-info"><strong>Mathematics</strong><span>Quantitative logic</span></div>
                                     </button>
-                                    <button class="type-btn" data-value="logic" onclick="selectType('logic')">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="1.8">
-                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                                        </svg>
-                                        <span>Logic</span>
+                                    <button class="disc-card type-btn" data-value="logic" onclick="selectType('logic')">
+                                        <div class="disc-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                                        <div class="disc-info"><strong>Logic</strong><span>Deductive reasoning</span></div>
                                     </button>
-                                    <button class="type-btn" data-value="wordplay" onclick="selectType('wordplay')">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="1.8">
-                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                        </svg>
-                                        <span>Wordplay</span>
+                                    <button class="disc-card type-btn" data-value="wordplay" onclick="selectType('wordplay')">
+                                        <div class="disc-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                                        <div class="disc-info"><strong>Wordplay</strong><span>Linguistic agility</span></div>
                                     </button>
-                                    <button class="type-btn" data-value="trivia" onclick="selectType('trivia')">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="1.8">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <line x1="2" y1="12" x2="22" y2="12" />
-                                            <path
-                                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                                        </svg>
-                                        <span>Trivia</span>
+                                    <button class="disc-card type-btn" data-value="trivia" onclick="selectType('trivia')">
+                                        <div class="disc-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+                                        <div class="disc-info"><strong>Trivia</strong><span>Memory recall</span></div>
                                     </button>
                                 </div>
                             </div>
                             <button id="generateBtn" class="btn-generate-main" onclick="generatePuzzle()">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                                </svg>
-                                Generate Puzzle
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                    <polyline points="12 5 19 12 12 19" />
-                                </svg>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                Generate Exercise
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                             </button>
                         </div>
                     </div>
@@ -559,19 +571,16 @@
                     <div id="emptyState" class="empty-state-card">
                         <div class="empty-inner">
                             <div class="empty-icon-ring">
-                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="1.5">
-                                    <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
-                                </svg>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
                             </div>
-                            <h3>Ready to Begin Your Session?</h3>
-                            <p>Configure a difficulty tier and cognitive discipline above, then generate your first
-                                AI-crafted puzzle. Each challenge is uniquely created — no two sessions are alike.</p>
-                            <div class="empty-hints-row">
-                                <span>Riddle</span>
-                                <span>Mathematics</span>
-                                <span>Logic</span>
-                                <span>Wordplay</span>
+                            <h3>Your Exercise Will Appear Here</h3>
+                            <p>Configure your difficulty and discipline above, then hit <strong>Generate Exercise</strong>. Each challenge is uniquely crafted by AI — no two sessions are the same.</p>
+                            <div class="empty-steps">
+                                <div class="empty-step"><div class="empty-step-num">1</div><span>Pick difficulty</span></div>
+                                <div class="empty-step-arrow">→</div>
+                                <div class="empty-step"><div class="empty-step-num">2</div><span>Choose discipline</span></div>
+                                <div class="empty-step-arrow">→</div>
+                                <div class="empty-step"><div class="empty-step-num">3</div><span>Generate &amp; solve</span></div>
                             </div>
                         </div>
                     </div>
@@ -583,36 +592,48 @@
                                 <span id="puzzleTypeLabel" class="puzzle-type-badge">Riddle</span>
                                 <span id="puzzleBadge" class="diff-badge badge-medium">Intermediate</span>
                             </div>
-                            <button class="icon-btn-sm" onclick="resetPuzzle()" title="New Puzzle">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <polyline points="1 4 1 10 7 10" />
-                                    <path d="M3.51 15a9 9 0 1 0 .49-3.07" />
-                                </svg>
-                            </button>
+                            <div class="puzzle-header-right">
+                                <span class="puzzle-xp-label" id="puzzleXpLabel">+150 XP on solve</span>
+                                <button class="icon-btn-sm" onclick="resetPuzzle()" title="New Puzzle">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.07"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="puzzle-objective-row">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            <span>Read carefully and reason through the clues before submitting your answer.</span>
                         </div>
                         <div class="puzzle-question-box">
                             <div class="pq-accent"></div>
                             <p id="puzzleQuestion" class="puzzle-question-text"></p>
                         </div>
                         <div class="answer-section">
+                            <div class="answer-label-row">
+                                <label class="answer-label" for="answerInput">Your Answer</label>
+                                <span class="answer-hint-text">Press Enter to submit</span>
+                            </div>
                             <div class="answer-row">
-                                <input type="text" id="answerInput" class="answer-input"
-                                    placeholder="Enter your answer…" autocomplete="off">
-                                <button id="submitBtn" class="btn-check-answer" onclick="checkAnswer()">Verify</button>
+                                <input type="text" id="answerInput" class="answer-input" placeholder="Type your answer here…" autocomplete="off">
+                                <button id="submitBtn" class="btn-check-answer" onclick="checkAnswer()">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                    Verify
+                                </button>
                             </div>
                             <div id="feedbackArea" class="feedback-area hidden"></div>
                         </div>
                         <div id="hintsArea" class="hints-area"></div>
                         <div class="puzzle-actions-row">
                             <button id="hintBtn" class="action-pill" onclick="getHint()">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                                 Request Hint <span id="hintCount" class="hint-count">0/3</span>
                             </button>
                             <button id="solutionBtn" class="action-pill" onclick="showSolution()">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                 Reveal Solution
                             </button>
                             <button class="action-pill pill-ghost" onclick="navigateTo('chat')">
-                                Consult AI
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                Ask AI Companion
                             </button>
                         </div>
                     </div>
@@ -631,72 +652,85 @@
 
                 <!-- RIGHT sidebar -->
                 <div class="puzzle-col-right">
+
+                    <!-- ── Neuroscience Panel ── -->
+                    <div class="neuro-panel" id="neuroPanel">
+                        <div class="neuro-panel-header">
+                            <div class="neuro-header-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-1.96-3 2.5 2.5 0 0 1-1.32-4.24 3 3 0 0 1 .34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 1.96-3 2.5 2.5 0 0 0 1.32-4.24 3 3 0 0 0-.34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
+                            </div>
+                            <div>
+                                <h3 id="neuroPanelTitle">Select a Discipline</h3>
+                                <span class="neuro-panel-sub">Neuroscience &amp; Clinical Context</span>
+                            </div>
+                        </div>
+
+                        <!-- Problem being solved -->
+                        <div class="neuro-section" id="neuroProblem">
+                            <div class="neuro-section-label">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                THE PROBLEM
+                            </div>
+                            <p id="neuroProblemText" class="neuro-body">Choose a discipline above to see which neurological deficit it addresses and why it matters in cognitive rehabilitation.</p>
+                        </div>
+
+                        <!-- Brain regions -->
+                        <div class="neuro-section" id="neuroRegions">
+                            <div class="neuro-section-label">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-1.96-3 2.5 2.5 0 0 1-1.32-4.24 3 3 0 0 1 .34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/></svg>
+                                BRAIN REGIONS ACTIVATED
+                            </div>
+                            <div id="neuroRegionTags" class="neuro-region-tags">
+                                <span class="neuro-region-empty">Select a discipline to see active regions</span>
+                            </div>
+                        </div>
+
+                        <!-- Biology -->
+                        <div class="neuro-section">
+                            <div class="neuro-section-label">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                THE BIOLOGY
+                            </div>
+                            <p id="neuroBioText" class="neuro-body neuro-bio">—</p>
+                        </div>
+
+                        <!-- Research callout -->
+                        <div class="neuro-callout" id="neuroCallout">
+                            <div class="neuro-callout-icon">📄</div>
+                            <p id="neuroCalloutText">Select a discipline to view relevant clinical research context.</p>
+                        </div>
+                    </div>
+
+                    <!-- ── Hint System ── -->
                     <div class="quick-hints-card">
                         <h3 class="qh-title">Progressive Hint System</h3>
-                        <p class="qh-subtitle">Reveal calibrated clues without immediately compromising the challenge
-                        </p>
+                        <p class="qh-subtitle">Three calibrated clue tiers — reveal only what you need, preserving the cognitive challenge.</p>
                         <div class="qh-buttons">
                             <button class="qh-btn" data-hint="0" onclick="getHint(0)">
                                 <div class="qh-num">I</div>
-                                <div class="qh-info">
-                                    <strong>Directional Clue</strong>
-                                    <span>A subtle nudge toward the solution domain</span>
-                                </div>
-                                <svg class="qh-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2">
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                    <polyline points="12 5 19 12 12 19" />
-                                </svg>
+                                <div class="qh-info"><strong>Directional Clue</strong><span>Points toward the solution domain</span></div>
+                                <div class="qh-penalty">−25 pts</div>
                             </button>
                             <button class="qh-btn" data-hint="1" onclick="getHint(1)">
                                 <div class="qh-num">II</div>
-                                <div class="qh-info">
-                                    <strong>Elimination Clue</strong>
-                                    <span>Significantly narrows the solution space</span>
-                                </div>
-                                <svg class="qh-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2">
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                    <polyline points="12 5 19 12 12 19" />
-                                </svg>
+                                <div class="qh-info"><strong>Elimination Clue</strong><span>Significantly narrows the solution space</span></div>
+                                <div class="qh-penalty">−25 pts</div>
                             </button>
                             <button class="qh-btn" data-hint="2" onclick="getHint(2)">
                                 <div class="qh-num">III</div>
-                                <div class="qh-info">
-                                    <strong>Confirmatory Clue</strong>
-                                    <span>Near-conclusive — preserves the final insight</span>
-                                </div>
-                                <svg class="qh-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2">
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                    <polyline points="12 5 19 12 12 19" />
-                                </svg>
+                                <div class="qh-info"><strong>Confirmatory Clue</strong><span>Near-conclusive — preserves the final insight</span></div>
+                                <div class="qh-penalty">−25 pts</div>
                             </button>
                         </div>
                     </div>
 
+                    <!-- ── Scoring ── -->
                     <div class="scoring-info-card">
-                        <h3>Scoring Methodology</h3>
+                        <h3>Scoring System</h3>
                         <div class="score-detail">
-                            <span class="score-row">
-                                <span class="score-key">Base Reward</span>
-                                <span class="score-val">Introductory 100 · Intermediate 150 · Expert 200</span>
-                            </span>
-                            <span class="score-row">
-                                <span class="score-key">Velocity Bonus</span>
-                                <span class="score-val">Up to +300 pts — decreases linearly with time elapsed</span>
-                            </span>
-                            <span class="score-row">
-                                <span class="score-key">Hint Deduction</span>
-                                <span class="score-val">−25 pts per hint revealed</span>
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="discipline-info-card">
-                        <h3>About This Discipline</h3>
-                        <div id="disciplineDescription" class="discipline-body">
-                            Select a puzzle type to see a description of its cognitive benefits.
+                            <span class="score-row"><span class="score-key">Base Reward</span><span class="score-val">Intro 100 · Mid 150 · Expert 200</span></span>
+                            <span class="score-row"><span class="score-key">Speed Bonus</span><span class="score-val">Up to +300 pts — decreases linearly</span></span>
+                            <span class="score-row"><span class="score-key">Hint Penalty</span><span class="score-val">−25 pts per hint revealed</span></span>
                         </div>
                     </div>
                 </div>
@@ -1034,7 +1068,7 @@
     <!-- Toast -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="/static/script.js"></script>
+    <script type="module" src="/static/script.js"></script>
 </body>
 
 </html>

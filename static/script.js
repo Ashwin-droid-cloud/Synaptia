@@ -4,6 +4,18 @@
  */
 
 /* ============================================
+   FIREBASE IMPORTS
+   Loaded via ESM CDN — no bundler required.
+   firebase-config.js handles app init.
+   ============================================ */
+import {
+  db, auth,
+  saveSession, loadSession, saveHistoryEntry,
+  logPuzzleEvent, logAnalyticsEvent,
+  signInWithGoogle, firebaseSignOut, onAuthChange,
+} from '/static/firebase-config.js';
+
+/* ============================================
    CONFIG
    ============================================ */
 // Use relative paths so the same build works locally AND in any deployment
@@ -309,6 +321,19 @@ async function checkAnswer() {
       launchConfetti();
       checkAchievements(elapsed);
 
+      // ── Firebase: persist solve event ────────────────────────
+      logPuzzleEvent(State.puzzle.type, State.puzzle.difficulty, true, pts, elapsed);
+      saveHistoryEntry(State.sessionId, {
+        question:   State.puzzle.question,
+        type:       State.puzzle.type,
+        difficulty: State.puzzle.difficulty,
+        solved:     true,
+        score:      pts,
+        elapsed,
+      });
+      persistSession();
+      // ─────────────────────────────────────────────────────────
+
       // Track solved type
       if (!State.solvedTypes.includes(State.puzzle.type)) {
         State.solvedTypes.push(State.puzzle.type);
@@ -428,6 +453,18 @@ async function showSolution() {
       addHistory(State.puzzle, false, 0, 0);
       stopTimer();
       disablePuzzleInputs();
+      // ── Firebase: persist skip event ──────────────────────────
+      logPuzzleEvent(State.puzzle.type, State.puzzle.difficulty, false, 0, 0);
+      saveHistoryEntry(State.sessionId, {
+        question:   State.puzzle.question,
+        type:       State.puzzle.type,
+        difficulty: State.puzzle.difficulty,
+        solved:     false,
+        score:      0,
+        elapsed:    0,
+      });
+      persistSession();
+      // ─────────────────────────────────────────────────────────
     }
   } catch (err) {
     toast('Error loading solution', 'error');
@@ -863,20 +900,104 @@ document.addEventListener('keydown', (e) => {
 $('#themeToggle')?.addEventListener('click', toggleTheme);
 
 /* ============================================
-   DISCIPLINE DESCRIPTIONS
+   DISCIPLINE DESCRIPTIONS — NEUROSCIENCE DATA
    ============================================ */
-const disciplineDescriptions = {
-  riddle: 'Riddles demand lateral thinking — the ability to reinterpret familiar concepts through unexpected lenses. Sustained practice improves semantic flexibility and the capacity to form novel conceptual associations, both critical for creative problem-solving.',
-  math: 'Mathematical puzzles train systematic quantitative reasoning. They strengthen the ability to construct multi-step inference chains, hold numerical constraints in working memory, and translate abstract relationships into concrete operations.',
-  logic: 'Formal logic exercises develop deductive rigour — the capacity to draw valid conclusions from a given set of premises. This discipline directly mirrors the reasoning patterns required in programming, legal argumentation, and scientific analysis.',
-  wordplay: 'Wordplay and linguistic brain-teasers develop phonological awareness, semantic breadth, and the ability to perceive ambiguity as an asset rather than an obstacle. This supports communication precision and metaphorical thinking.',
-  trivia: 'Curated trivia strengthens declarative memory consolidation and the ability to rapidly surface contextually relevant knowledge — a skill that underpins domain expertise acquisition and interdisciplinary synthesis.',
+
+// Backwards-compat stub (disciplineDescription div no longer shown)
+function updateDisciplineDescription(type) { updateDisciplinePanel(type); }
+
+const neuroData = {
+  riddle: {
+    title: 'Riddle — Lateral Thinking',
+    problem: 'In Alzheimer\'s, the default mode network (DMN) — responsible for imagination and mental simulation — is one of the earliest regions to accumulate amyloid-beta plaques. This disrupts the ability to "think around" a problem, leaving patients increasingly literal and rigid in interpretation. Riddles directly exercise the flexibility this network provides.',
+    regions: [
+      { label: 'Prefrontal Cortex', color: '#d4ff00' },
+      { label: 'Default Mode Network', color: '#7c65f6' },
+      { label: 'Angular Gyrus', color: '#22c55e' },
+      { label: 'Temporal Lobes', color: '#f59e0b' },
+    ],
+    bio: 'Solving a riddle requires semantic re-mapping — the brain must hold multiple interpretations of a word or phrase in parallel, suppress the dominant (incorrect) reading, and activate a suppressed (correct) one. This depends on the angular gyrus for metaphor processing and the prefrontal cortex for inhibitory control. Each successful re-interpretation strengthens the inhibitory pathways that Alzheimer\'s erodes, and promotes BDNF (brain-derived neurotrophic factor) release, which supports synaptic plasticity.',
+    callout: '📄 A 2020 meta-analysis in Neuropsychology Review found that activities demanding semantic flexibility — including riddles and creative wordplay — significantly slowed DMN atrophy in MCI (Mild Cognitive Impairment) patients over a 24-month period.',
+  },
+  math: {
+    title: 'Mathematics — Working Memory',
+    problem: 'The dorsolateral prefrontal cortex (DLPFC) and parietal cortex, which underpin numerical working memory, are severely compromised in Alzheimer\'s disease. Patients progressively lose the ability to hold and manipulate numbers mentally — a deficit that begins subtly (miscounting change) and advances to the inability to track basic sequences. Mathematical exercises directly target and stress-test this degrading circuit.',
+    regions: [
+      { label: 'Dorsolateral PFC', color: '#d4ff00' },
+      { label: 'Inferior Parietal Lobule', color: '#7c65f6' },
+      { label: 'Intraparietal Sulcus', color: '#22c55e' },
+      { label: 'Hippocampus', color: '#ef4444' },
+    ],
+    bio: 'Multi-step arithmetic activates a network spanning the intraparietal sulcus (numerical magnitude processing), the DLPFC (holding intermediate values in working memory), and the hippocampus (encoding the result). This network\'s repeated activation promotes long-term potentiation (LTP) — the strengthening of synaptic connections through use — effectively building a computational "reserve" that cushions against further neuronal loss. Each problem solved is a measurable rehearsal of the DLPFC-parietal loop.',
+    callout: '📄 The ACTIVE trial (2014, JAMA Internal Medicine) demonstrated that trained reasoning and memory exercises — heavily involving numerical manipulation — produced cognitive benefits lasting up to 10 years post-training in older adults, with measurable reductions in dementia incidence.',
+  },
+  logic: {
+    title: 'Logic — Executive Function',
+    problem: 'Executive function — the brain\'s management system for planning, sequencing, and rule-following — is governed by the prefrontal cortex and its connections to subcortical structures. In frontotemporal dementia and later-stage Alzheimer\'s, this system deteriorates, manifesting as poor judgment, difficulty following steps, and impulsive decisions. Formal logic exercises are one of the few activities that demand the full prefrontal executive hierarchy.',
+    regions: [
+      { label: 'Prefrontal Cortex', color: '#d4ff00' },
+      { label: 'Anterior Cingulate', color: '#7c65f6' },
+      { label: 'Basal Ganglia', color: '#22c55e' },
+      { label: 'Thalamus', color: '#f59e0b' },
+    ],
+    bio: 'Deductive reasoning tasks activate the anterior cingulate cortex (conflict monitoring — detecting when two premises clash), the DLPFC (maintaining the rule-set in working memory), and the basal ganglia (suppressing incorrect response patterns). This circuit is the neural substrate of what clinicians call "executive reserve." Evidence shows that repeated engagement with structured rule-following tasks upregulates dopaminergic tone in the prefrontal-striatal loop — the same pathway degraded by Lewy body pathology.',
+    callout: '📄 A landmark 2003 study in NEJM (Verghese et al.) found that cognitively demanding leisure activities — particularly those requiring rule-based reasoning — were associated with a 63% reduced risk of developing dementia in adults over 75, the strongest single-activity effect in the cohort.',
+  },
+  wordplay: {
+    title: 'Wordplay — Language & Semantic Memory',
+    problem: 'Semantic memory — the store of factual knowledge about words, concepts, and their relationships — is anchored in the left temporal lobe, particularly the inferior temporal gyrus and the anterior temporal pole. These regions are among the most consistently damaged in semantic dementia and are significantly impacted in Alzheimer\'s. The first clinical sign is often anomia: the inability to name familiar objects. Wordplay exercises stress-test the semantic network before this stage is reached.',
+    regions: [
+      { label: 'Left Temporal Lobe', color: '#d4ff00' },
+      { label: "Broca's Area", color: '#7c65f6' },
+      { label: "Wernicke's Area", color: '#22c55e' },
+      { label: 'Anterior Temporal Pole', color: '#f59e0b' },
+    ],
+    bio: 'Phonological puzzles (puns, anagrams, homophones) force simultaneous activation of multiple lexical representations, exercising the spreading activation model of the mental lexicon. This is mediated by the arcuate fasciculus — the white matter tract connecting Broca\'s area (speech production) to Wernicke\'s area (speech comprehension). Regular stimulation of this tract maintains its myelin integrity, which deteriorates in dementia, slowing the axonal conduction that underlies fluent language. Studies show wordplay uniquely preserves the "tip-of-tongue" retrieval pathway.',
+    callout: '📄 Research from the Nun Study (Snowdon, 2001) showed that high linguistic density and complexity in early-life writing — a proxy for rich semantic network engagement — predicted significantly lower rates of Alzheimer\'s pathology at autopsy, even in individuals with substantial plaque burden.',
+  },
+  trivia: {
+    title: 'Trivia — Episodic & Declarative Memory',
+    problem: 'The hippocampus — the brain\'s primary memory consolidation hub — is the ground zero of Alzheimer\'s disease. Amyloid plaques and neurofibrillary tangles accumulate here first, causing episodic memory failure (inability to form new memories) and then retrograde loss (erosion of existing ones). Curated trivia exercises force explicit recall from long-term declarative stores, actively rehearsing retrieval pathways before they are severed.',
+    regions: [
+      { label: 'Hippocampus', color: '#d4ff00' },
+      { label: 'Entorhinal Cortex', color: '#ef4444' },
+      { label: 'Prefrontal Cortex', color: '#7c65f6' },
+      { label: 'Perirhinal Cortex', color: '#22c55e' },
+    ],
+    bio: 'Memory retrieval — not just encoding — is an active, reconstructive neural process. Each time a fact is successfully recalled, the hippocampo-neocortical memory trace is re-consolidated, gradually making the memory less hippocampus-dependent and more cortically distributed. This process (systems consolidation) is how memories become resilient. In cognitively at-risk individuals, repeated successful retrieval produces measurable increases in gray matter density in the hippocampus and entorhinal cortex — the exact regions where Alzheimer\'s pathology first takes hold.',
+    callout: '📄 The Rush Memory and Aging Project tracked 900+ adults over 20 years and found that those with high cognitive activity scores — particularly frequent recall-based tasks — had 48% lower risk of Alzheimer\'s diagnosis and a slower rate of hippocampal volume loss on MRI.',
+  },
 };
 
-function updateDisciplineDescription(type) {
-  const el = $('#disciplineDescription');
-  if (!el) return;
-  el.textContent = disciplineDescriptions[type] || 'Select a puzzle type to see a description of its cognitive benefits.';
+function updateDisciplinePanel(type) {
+  const data = neuroData[type];
+  if (!data) return;
+
+  const titleEl  = $('#neuroPanelTitle');
+  const probEl   = $('#neuroProblemText');
+  const tagsEl   = $('#neuroRegionTags');
+  const bioEl    = $('#neuroBioText');
+  const callEl   = $('#neuroCalloutText');
+
+  if (titleEl)  titleEl.textContent  = data.title;
+  if (probEl)   probEl.textContent   = data.problem;
+  if (bioEl)    bioEl.textContent    = data.bio;
+  if (callEl)   callEl.textContent   = data.callout;
+
+  if (tagsEl) {
+    tagsEl.innerHTML = data.regions.map(r =>
+      `<span class="neuro-region-tag" style="--rc:${r.color}">${r.label}</span>`
+    ).join('');
+  }
+
+  // Animate panel in
+  const panel = $('#neuroPanel');
+  if (panel) {
+    panel.style.animation = 'none';
+    panel.offsetHeight; // reflow
+    panel.style.animation = '';
+    panel.classList.add('neuro-panel--active');
+  }
 }
 
 /* ============================================
@@ -886,6 +1007,7 @@ applyTheme();
 renderHistory();
 updateNavStats();
 updateAchievements();
+updateDisciplinePanel('riddle'); // pre-populate neuroscience panel
 navigateTo('home');
 
 // Fetch and update active AI models implicitly
@@ -920,6 +1042,148 @@ async function updateActiveModels() {
 setInterval(updateActiveModels, 15000);
 
 console.log('[Synaptia] Neurological Companion Platform — loaded successfully');
+
+/* ============================================
+   FIREBASE — AUTH STATE LISTENER
+   Tracks sign-in state; updates a subtle UI
+   indicator in the navbar when a user is
+   authenticated via Google.
+   ============================================ */
+/* ============================================
+   FIREBASE — AUTH GUARD
+   Check sign-in state on load. Redirect to
+   /login if no authenticated user is found.
+   A 1.5 s timeout prevents infinite hang on
+   slow network while still honouring Firebase's
+   async auth resolution.
+   ============================================ */
+let _authResolved = false;
+let _authUser = null;
+
+// Only redirect to /login if we NEVER got a user within the timeout window.
+// This prevents false redirects when Firebase is still loading the persisted
+// session from IndexedDB (onAuthStateChanged can fire null before the token loads).
+const _authTimeout = setTimeout(() => {
+  if (!_authResolved) {
+    _authResolved = true;
+    if (!_authUser) {
+      console.log('[Synaptia/Firebase] Auth timed out — no user found, redirecting to /login');
+      window.location.replace('/login');
+    } else {
+      console.log('[Synaptia/Firebase] Auth timeout resolved with user:', _authUser.email || _authUser.uid);
+    }
+  }
+}, 5000);
+
+onAuthChange((user) => {
+  _authUser = user; // always track the latest auth state
+
+  // Show / hide the logout button based on auth state
+  const logoutBtn = $('#logoutBtn');
+  if (logoutBtn) logoutBtn.style.display = user ? 'inline-flex' : 'none';
+
+  if (user) {
+    // User confirmed — allow access immediately
+    if (!_authResolved) {
+      _authResolved = true;
+      clearTimeout(_authTimeout);
+    }
+    console.log('[Synaptia/Firebase] Auth state: signed in —', user.email || user.uid);
+    logAnalyticsEvent('session_start', { uid: user.uid });
+    const name = user.displayName || user.email || 'back';
+    toast(`Welcome, ${name}`, 'success');
+  }
+  // If user is null, we do NOT act immediately — we wait for the timeout.
+  // Firebase may re-fire with the real user once the persisted token loads.
+});
+
+/* ============================================
+   FIREBASE — GOOGLE AUTH WRAPPERS
+   Exposed on window so inline onclick attrs
+   and future UI buttons can call them directly.
+   ============================================ */
+window.signInWithGoogle = async function () {
+  try {
+    const user = await signInWithGoogle();
+    toast(`Signed in as ${user.displayName || user.email}`, 'success');
+  } catch (err) {
+    toast('Sign-in failed — please try again.', 'error');
+  }
+};
+
+window.firebaseSignOut = async function () {
+  try {
+    await firebaseSignOut();
+    toast('Signed out successfully.', 'info');
+  } catch (err) {
+    toast('Sign-out failed.', 'error');
+  }
+};
+
+/* ============================================
+   LOGOUT HANDLER
+   Called by the navbar logout button.
+   Signs out from Firebase and redirects to /login.
+   ============================================ */
+window.handleLogout = async function () {
+  const btn = $('#logoutBtn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+  try {
+    await firebaseSignOut();
+    window.location.replace('/login');
+  } catch (err) {
+    toast('Sign-out failed — please try again.', 'error');
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  }
+};
+
+/* ============================================
+   FIREBASE — SESSION PERSISTENCE
+   Saves session state to Firestore after each
+   meaningful score change (puzzle solved/skipped).
+   ============================================ */
+async function persistSession() {
+  try {
+    await saveSession(State.sessionId, {
+      score:       State.score,
+      solved:      State.solved,
+      attempts:    State.attempts,
+      totalHints:  State.totalHints,
+      achievements: State.achievements,
+    });
+  } catch (_) { /* non-fatal — localStorage is the primary fallback */ }
+}
+
+/* ============================================
+   WINDOW EXPOSURES
+   ES modules scope all declarations locally.
+   HTML onclick="fn()" attributes require every
+   referenced function to be on window explicitly.
+   ============================================ */
+window.navigateTo          = navigateTo;
+window.selectDifficulty    = selectDifficulty;
+window.selectType          = selectType;
+window.generatePuzzle      = generatePuzzle;
+window.checkAnswer         = checkAnswer;
+window.getHint             = getHint;
+window.showSolution        = showSolution;
+window.closeModal          = closeModal;
+window.handleModalOverlayClick = handleModalOverlayClick;
+window.resetPuzzle         = resetPuzzle;
+window.clearHistory        = clearHistory;
+window.selectMode          = selectMode;
+window.sendChatMessage     = sendChatMessage;
+window.sendQuickPrompt     = sendQuickPrompt;
+window.clearChatSession    = clearChatSession;
+window.toggleTheme         = toggleTheme;
+window.closeMobileMenu     = closeMobileMenu;
+// Internal helpers re-exposed for the enhancement layer below
+window.addHistory          = addHistory;
+window.renderPuzzle        = renderPuzzle;
+window.showFeedback        = showFeedback;
+window.updateHintCount     = updateHintCount;
+window.renderStatsPage     = renderStatsPage;
+window.updateNavStats      = updateNavStats;
 
 
 /* ============================================================
