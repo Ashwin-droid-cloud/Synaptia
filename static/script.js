@@ -35,7 +35,7 @@ const State = {
   history: JSON.parse(localStorage.getItem('puzzleai-history') || '[]'),
   startTime: null,
   timerHandle: null,
-  darkMode: localStorage.getItem('puzzleai-theme') !== 'light',
+  darkMode: localStorage.getItem('puzzleai-theme') === 'dark',
   currentPage: 'home',
   difficulty: 'medium',
   puzzleType: 'riddle',
