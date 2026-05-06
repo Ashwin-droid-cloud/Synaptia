@@ -464,16 +464,22 @@
     }, 3000);
 
     onAuthStateChanged(auth, (user) => {
-      if (authResolved) return;
-      authResolved = true;
-      clearTimeout(authFallback);
-
-      if (user) {
-        // Already authenticated — send to main app
-        window.location.replace('/');
-      } else {
+      // First call: resolve the initial session check (show/hide overlay)
+      if (!authResolved) {
+        authResolved = true;
+        clearTimeout(authFallback);
         document.getElementById('authCheckOverlay').classList.add('hidden');
-        document.getElementById('authCard').style.display = '';
+
+        if (!user) {
+          // No existing session — show the login form and wait
+          document.getElementById('authCard').style.display = '';
+          return;
+        }
+      }
+
+      // Redirect whenever a user is confirmed (existing session OR fresh sign-in)
+      if (user) {
+        window.location.replace('/');
       }
     });
 
