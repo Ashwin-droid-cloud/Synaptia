@@ -1,0 +1,9 @@
+{
+  "name": "synaptia",
+  "version": "1.0.0",
+  "description": "Synaptia – AI-powered cognitive training platform with neuroscience-backed exercises",
+  "private": true,
+  "dependencies": {
+    "firebase": "^12.12.1"
+  }
+}
