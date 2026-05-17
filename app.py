@@ -1,6 +1,7 @@
 """
 Synaptia — Flask Application
-Main server with API routes for exercise generation, hints, chat, and answer checking.
+Main server with API routes for exercise generation, hints, chat, answer checking,
+analytics, adaptive difficulty, progress tracking, and interview coaching.
 Powered by the Groq API (groq.com) with an AI cross-validation layer to prevent hallucinations.
 """
 
@@ -9,6 +10,10 @@ from flask_cors import CORS
 from config import config
 from puzzle_generator import PuzzleGenerator
 from hint_provider import HintProvider
+from analytics import AnalyticsEngine
+from difficulty_engine import DifficultyEngine
+from progress_tracker import ProgressTracker
+from interview_coach import InterviewCoach
 import os
 import logging
 from datetime import datetime
@@ -30,8 +35,12 @@ app.config.from_object(config[config_name])
 app.config["SESSION_TYPE"] = "filesystem"
 
 # Initialize modules
-puzzle_gen = PuzzleGenerator()
-hint_provider = HintProvider()
+puzzle_gen       = PuzzleGenerator()
+hint_provider    = HintProvider()
+analytics_engine = AnalyticsEngine()
+difficulty_engine = DifficultyEngine()
+progress_tracker = ProgressTracker()
+interview_coach  = InterviewCoach()
 
 # In-memory session tracking
 session_stats = {}
@@ -250,6 +259,201 @@ def model_status():
             "display": hint_provider.active_model_display,
         },
     }), 200
+
+
+# ============== ANALYTICS API ==============
+
+@app.route("/api/analytics/<user_id>/record", methods=["POST"])
+def record_analytics(user_id):
+    """Record a puzzle attempt event for analytics tracking."""
+    try:
+        data = request.get_json() or {}
+        snap = analytics_engine.record_attempt(
+            user_id,
+            puzzle_id    = data.get("puzzle_id", ""),
+            difficulty   = data.get("difficulty", "medium"),
+            puzzle_type  = data.get("puzzle_type", "riddle"),
+            correct      = data.get("correct", False),
+            hints_used   = data.get("hints_used", 0),
+            time_taken_s = data.get("time_taken_s"),
+        )
+        return jsonify(snap), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/analytics/<user_id>/dashboard", methods=["GET"])
+def analytics_dashboard(user_id):
+    """Return the full analytics dashboard for a user."""
+    try:
+        return jsonify(analytics_engine.get_dashboard(user_id)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/analytics/<user_id>/events", methods=["GET"])
+def analytics_events(user_id):
+    """Return recent event log for a user."""
+    try:
+        limit = int(request.args.get("limit", 50))
+        return jsonify(analytics_engine.get_user_events(user_id, limit=limit)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/analytics/leaderboard", methods=["GET"])
+def analytics_leaderboard():
+    """Return the global cognitive score leaderboard."""
+    try:
+        top_n = int(request.args.get("top", 10))
+        return jsonify(analytics_engine.get_leaderboard(top_n=top_n)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============== DIFFICULTY API ==============
+
+@app.route("/api/difficulty/<user_id>/recommend", methods=["GET"])
+def recommend_difficulty(user_id):
+    """Recommend the next puzzle difficulty for a user."""
+    try:
+        return jsonify(difficulty_engine.recommend(user_id)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/difficulty/<user_id>/record", methods=["POST"])
+def record_difficulty_result(user_id):
+    """Record a puzzle result and update the user's Elo rating."""
+    try:
+        data = request.get_json() or {}
+        snap = difficulty_engine.record_result(
+            user_id,
+            difficulty   = data.get("difficulty", "medium"),
+            correct      = data.get("correct", False),
+            hints_used   = data.get("hints_used", 0),
+            time_taken_s = data.get("time_taken_s"),
+        )
+        return jsonify(snap), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/difficulty/<user_id>/rating", methods=["GET"])
+def get_user_rating(user_id):
+    """Return a user's current Elo rating and history."""
+    try:
+        return jsonify({
+            "user_id": user_id,
+            "rating":  difficulty_engine.get_rating(user_id),
+            "history": difficulty_engine.get_history(user_id, limit=20),
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============== PROGRESS API ==============
+
+@app.route("/api/progress/<user_id>", methods=["GET"])
+def get_progress(user_id):
+    """Return the full progress profile for a user."""
+    try:
+        return jsonify(progress_tracker.get_profile(user_id)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/progress/<user_id>/record", methods=["POST"])
+def record_progress(user_id):
+    """Record a puzzle solve event for progress tracking."""
+    try:
+        data = request.get_json() or {}
+        result = progress_tracker.record_solve(
+            user_id,
+            puzzle_type  = data.get("puzzle_type", "riddle"),
+            difficulty   = data.get("difficulty", "medium"),
+            hints_used   = data.get("hints_used", 0),
+            correct      = data.get("correct", False),
+            time_taken_s = data.get("time_taken_s"),
+        )
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/progress/<user_id>/badges", methods=["GET"])
+def get_badges(user_id):
+    """Return all earned badges for a user."""
+    try:
+        return jsonify(progress_tracker.get_badges(user_id)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/progress/<user_id>/report", methods=["GET"])
+def export_progress_report(user_id):
+    """Export a full progress report for a user."""
+    try:
+        return jsonify(progress_tracker.export_report(user_id)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/progress/<user_id>/goal", methods=["POST"])
+def set_weekly_goal(user_id):
+    """Set the user's weekly puzzle goal."""
+    try:
+        data = request.get_json() or {}
+        goal = data.get("goal", 15)
+        progress_tracker.set_weekly_goal(user_id, goal)
+        return jsonify({"status": "updated", "goal": goal}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============== INTERVIEW COACH API ==============
+
+@app.route("/api/interview/<user_id>/start", methods=["POST"])
+def start_interview(user_id):
+    """Start a new interview coaching session."""
+    try:
+        data   = request.get_json() or {}
+        domain = data.get("domain", "general")
+        result = interview_coach.start_session(user_id, domain=domain)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/interview/<user_id>/respond", methods=["POST"])
+def interview_respond(user_id):
+    """Submit a response to the current interview question."""
+    try:
+        data     = request.get_json() or {}
+        response = data.get("response", "")
+        result   = interview_coach.evaluate_response(user_id, response)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/interview/<user_id>/status", methods=["GET"])
+def interview_status(user_id):
+    """Get the current interview session status."""
+    try:
+        return jsonify(interview_coach.get_session_status(user_id)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/interview/<user_id>/end", methods=["POST"])
+def end_interview(user_id):
+    """End the interview session and return a performance summary."""
+    try:
+        result = interview_coach.end_session(user_id)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ============== ERROR HANDLERS ==============
