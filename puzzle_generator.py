@@ -14,6 +14,9 @@ import logging
 import requests
 from typing import Optional
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

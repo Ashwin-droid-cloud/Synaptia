@@ -10,6 +10,9 @@ import logging
 import os
 import time
 from typing import Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
