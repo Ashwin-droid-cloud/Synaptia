@@ -11,6 +11,9 @@ import os
 import logging
 import time
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 from typing import Optional
 
 logger = logging.getLogger(__name__)
